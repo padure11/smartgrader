@@ -54,10 +54,28 @@ JSON files can use either of these formats:
 }
 ```
 
+**Format 3: Extended object format (with metadata)**
+```json
+{
+  "title": "Test Matematică — 10 întrebări",
+  "num_questions": 10,
+  "num_answers": 4,
+  "questions": [
+    {
+      "id": 1,
+      "text": "Care este rezultatul expresiei: 3 × (4 + 2) − 5?",
+      "correct_answer": "1",
+      "options": ["11", "13", "17", "7"],
+      "points": 5
+    }
+  ]
+}
+```
+
 **Alternative field names (also supported):**
 - `question`, `text`, or `questionText` for the question
 - `options`, `answers`, or `choices` for the answer options
-- `correct_answer` or `correctAnswer` for the correct answer index
+- `correct_answer` or `correctAnswer` for the correct answer index (supports both string "1" and number 1)
 
 ## Randomization Feature
 
@@ -105,7 +123,8 @@ This feature is currently under development.
 
 ## Sample Files
 
-- `sample_questions.csv` - Example CSV file with 10 sample questions
-- `sample_questions.json` - Example JSON file with the same 10 questions
+- `sample_questions.csv` - Example CSV file with 10 sample questions (English)
+- `sample_questions.json` - Example JSON file with the same 10 questions (simple format)
+- `sample_romanian_math.json` - Example Romanian mathematics test (extended format with metadata)
 
-Feel free to use these as templates for your own question imports!
+Feel free to use these as templates for your own question imports! All formats are fully supported.
