@@ -12,6 +12,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const enableRandomization = document.getElementById('enable-randomization');
     const randomizationSettings = document.getElementById('randomization-settings');
 
+    // Helper functions for messages (defined early so they can be used anywhere)
+    function showError(message) {
+        const errorDiv = document.getElementById('error-message');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function showSuccess(message) {
+        const successDiv = document.getElementById('success-message');
+        successDiv.textContent = message;
+        successDiv.style.display = 'block';
+        successDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     // Add first question by default
     addQuestion();
 
@@ -474,20 +489,6 @@ document.addEventListener('DOMContentLoaded', function() {
             showError('An error occurred while saving the test. Please try again.');
             console.error('Error:', error);
         });
-    }
-
-    function showError(message) {
-        const errorDiv = document.getElementById('error-message');
-        errorDiv.textContent = message;
-        errorDiv.style.display = 'block';
-        errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-
-    function showSuccess(message) {
-        const successDiv = document.getElementById('success-message');
-        successDiv.textContent = message;
-        successDiv.style.display = 'block';
-        successDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     // Make saveTest available globally for the submit button
