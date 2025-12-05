@@ -204,6 +204,71 @@
         display: none;
     }
 
+    .upload-area {
+        margin-top: 20px;
+    }
+
+    .upload-buttons {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .submission-card {
+        background: #3a3a3a;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: transform 0.2s;
+    }
+
+    .submission-card:hover {
+        transform: translateX(5px);
+        background: #444;
+    }
+
+    .submission-info {
+        flex: 1;
+    }
+
+    .submission-name {
+        font-size: 18px;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 5px;
+    }
+
+    .submission-meta {
+        color: #aaa;
+        font-size: 14px;
+    }
+
+    .submission-score {
+        font-size: 24px;
+        font-weight: bold;
+        padding: 15px 25px;
+        border-radius: 10px;
+        text-align: center;
+    }
+
+    .submission-score.excellent {
+        background: linear-gradient(135deg, #69c8a0 0%, #58b38e 100%);
+        color: #000;
+    }
+
+    .submission-score.good {
+        background: linear-gradient(135deg, #667eea 0%, #5568d3 100%);
+        color: #fff;
+    }
+
+    .submission-score.poor {
+        background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+        color: #fff;
+    }
+
     @media (max-width: 768px) {
         .test-header {
             padding: 25px;
@@ -269,6 +334,34 @@
             <button onclick="confirmDelete()" class="action-btn btn-danger">
                 🗑️ Delete Test
             </button>
+        </div>
+    </div>
+
+    <div class="actions-section">
+        <h2>📷 Upload Student Submissions</h2>
+        <p style="color: #ccc; margin-bottom: 20px;">Upload scanned answer sheets (images or ZIP file) to automatically grade them using OMR</p>
+
+        <div class="upload-area">
+            <input type="file" id="image-uploads" multiple accept="image/*" style="display: none;">
+            <input type="file" id="zip-upload" accept=".zip" style="display: none;">
+
+            <div class="upload-buttons">
+                <button onclick="document.getElementById('image-uploads').click()" class="action-btn btn-secondary">
+                    📁 Upload Images
+                </button>
+                <button onclick="document.getElementById('zip-upload').click()" class="action-btn btn-secondary">
+                    📦 Upload ZIP File
+                </button>
+            </div>
+
+            <div id="upload-status" style="margin-top: 15px; color: #fff;"></div>
+        </div>
+    </div>
+
+    <div class="actions-section" id="submissions-section">
+        <h2>📊 Graded Submissions</h2>
+        <div id="submissions-list">
+            <p style="color: #ccc;">Loading submissions...</p>
         </div>
     </div>
 
@@ -384,5 +477,111 @@ function deleteTest() {
         console.error('Error:', error);
     });
 }
+
+// File upload handlers
+document.getElementById('image-uploads').addEventListener('change', function(e) {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+        uploadFiles(files, false);
+    }
+});
+
+document.getElementById('zip-upload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        uploadFiles([file], true);
+    }
+});
+
+function uploadFiles(files, isZip) {
+    const statusDiv = document.getElementById('upload-status');
+    statusDiv.innerHTML = '⏳ Processing submissions...';
+    statusDiv.style.color = '#fff';
+
+    const formData = new FormData();
+
+    if (isZip) {
+        formData.append('zip_file', files[0]);
+    } else {
+        files.forEach(file => {
+            formData.append('files', file);
+        });
+    }
+
+    fetch('/tests/{{ test.id }}/upload-submissions/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            statusDiv.innerHTML = '❌ Error: ' + data.error;
+            statusDiv.style.color = '#ff4444';
+        } else {
+            statusDiv.innerHTML = '✅ ' + data.message;
+            statusDiv.style.color = '#69c8a0';
+
+            // Show results
+            if (data.results && data.results.length > 0) {
+                let successCount = data.results.filter(r => r.success).length;
+                statusDiv.innerHTML += `<br>Successfully processed: ${successCount}/${data.results.length}`;
+            }
+
+            // Reload submissions
+            loadSubmissions();
+
+            // Reset file inputs
+            document.getElementById('image-uploads').value = '';
+            document.getElementById('zip-upload').value = '';
+        }
+    })
+    .catch(error => {
+        statusDiv.innerHTML = '❌ An error occurred while uploading';
+        statusDiv.style.color = '#ff4444';
+        console.error('Error:', error);
+    });
+}
+
+function loadSubmissions() {
+    const submissionsDiv = document.getElementById('submissions-list');
+
+    fetch('/tests/{{ test.id }}/submissions/')
+    .then(response => response.json())
+    .then(data => {
+        if (data.submissions && data.submissions.length > 0) {
+            let html = '';
+            data.submissions.forEach(sub => {
+                let scoreClass = 'poor';
+                if (sub.percentage >= 80) scoreClass = 'excellent';
+                else if (sub.percentage >= 60) scoreClass = 'good';
+
+                html += `
+                    <div class="submission-card">
+                        <div class="submission-info">
+                            <div class="submission-name">${sub.student_name}</div>
+                            <div class="submission-meta">
+                                Submitted: ${sub.submitted_at}
+                            </div>
+                        </div>
+                        <div class="submission-score ${scoreClass}">
+                            ${sub.score}/${sub.total}<br>
+                            <span style="font-size: 14px;">${sub.percentage}%</span>
+                        </div>
+                    </div>
+                `;
+            });
+            submissionsDiv.innerHTML = html;
+        } else {
+            submissionsDiv.innerHTML = '<p style="color: #aaa;">No submissions yet. Upload student answer sheets to grade them automatically.</p>';
+        }
+    })
+    .catch(error => {
+        submissionsDiv.innerHTML = '<p style="color: #ff4444;">Error loading submissions</p>';
+        console.error('Error:', error);
+    });
+}
+
+// Load submissions on page load
+loadSubmissions();
 </script>
 {% endblock %}
