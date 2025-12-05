@@ -281,7 +281,13 @@
                 <ul class="options-list">
                     {% for option in question.options %}
                         <li class="option-item {% if forloop.counter0 == question.correct_answer %}correct{% endif %}">
-                            <span class="option-label">{{ forloop.counter|add:64|chr }}</span>
+                            <span class="option-label">
+                                {% if forloop.counter0 == 0 %}A{% endif %}
+                                {% if forloop.counter0 == 1 %}B{% endif %}
+                                {% if forloop.counter0 == 2 %}C{% endif %}
+                                {% if forloop.counter0 == 3 %}D{% endif %}
+                                {% if forloop.counter0 == 4 %}E{% endif %}
+                            </span>
                             <span>{{ option }}</span>
                             {% if forloop.counter0 == question.correct_answer %}
                                 <span style="margin-left: auto; color: #69c8a0;">✓ Correct</span>
