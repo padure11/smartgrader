@@ -1,8 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from .models import Test
@@ -21,9 +21,13 @@ def landing(request):
 
 
 def login_page(request):
+    if request.user.is_authenticated:
+        return redirect('test-list')
     return render(request, 'accounts/login.html')
 
 def register_page(request):
+    if request.user.is_authenticated:
+        return redirect('test-list')
     return render(request, 'accounts/register.html')
 
 
@@ -44,6 +48,7 @@ def register_user(request):
         return JsonResponse({"error": "Email already registered"}, status=400)
 
     user = User.objects.create_user(email=email, password=password)
+    login(request, user)  # Auto login after registration
 
     return JsonResponse({"message": "User created successfully", "email": user.email}, status=201)
 
@@ -68,12 +73,14 @@ def login_user(request):
     return JsonResponse({"message": "Login successful", "email": user.email})
 
 
+@login_required
 def test_generator_page(request):
     """Render the test generator page"""
     return render(request, 'accounts/test_generator.html')
 
 
 @csrf_exempt
+@login_required
 def create_test(request):
     """API endpoint to create a new test"""
     if request.method != "POST":
@@ -93,25 +100,14 @@ def create_test(request):
         if not questions or len(questions) == 0:
             return JsonResponse({"error": "At least one question is required"}, status=400)
 
-        # For now, create test for the first user (or anonymous)
-        # In production, use: user = request.user if request.user.is_authenticated else None
-        # Get first user or create a default user
-        user = User.objects.first()
-        if not user:
-            # Create a default user for testing
-            user = User.objects.create_user(
-                email="admin@smartgrader.com",
-                password="admin123"
-            )
-
-        # Create the test
+        # Create the test for the logged-in user
         test = Test.objects.create(
             title=title,
             description=data.get("description", ""),
             questions=questions,
             num_questions=len(questions),
             num_options=num_options,
-            created_by=user
+            created_by=request.user
         )
 
         response_data = {
@@ -147,29 +143,32 @@ def create_test(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+@login_required
 def test_list_page(request):
-    """Render the test list page"""
-    tests = Test.objects.all().order_by('-created_at')
+    """Render the test list page - show only user's tests"""
+    tests = Test.objects.filter(created_by=request.user).order_by('-created_at')
     return render(request, 'accounts/test_list.html', {'tests': tests})
 
 
+@login_required
 def test_detail_page(request, test_id):
     """Render the test detail page"""
     try:
-        test = Test.objects.get(id=test_id)
+        test = Test.objects.get(id=test_id, created_by=request.user)
         return render(request, 'accounts/test_detail.html', {'test': test})
     except Test.DoesNotExist:
         return render(request, 'accounts/test_not_found.html', status=404)
 
 
 @csrf_exempt
+@login_required
 def generate_pdf_api(request, test_id):
     """Generate PDF for an existing test"""
     if request.method != "POST":
         return JsonResponse({"error": "Only POST allowed"}, status=400)
 
     try:
-        test = Test.objects.get(id=test_id)
+        test = Test.objects.get(id=test_id, created_by=request.user)
 
         # Create media directory if it doesn't exist
         media_root = os.path.join(settings.BASE_DIR, 'media', 'tests')
@@ -192,13 +191,14 @@ def generate_pdf_api(request, test_id):
 
 
 @csrf_exempt
+@login_required
 def delete_test_api(request, test_id):
     """Delete a test"""
     if request.method != "DELETE" and request.method != "POST":
         return JsonResponse({"error": "Only DELETE or POST allowed"}, status=400)
 
     try:
-        test = Test.objects.get(id=test_id)
+        test = Test.objects.get(id=test_id, created_by=request.user)
         test_title = test.title
 
         # Delete associated PDF if it exists
@@ -216,3 +216,9 @@ def delete_test_api(request, test_id):
         return JsonResponse({"error": "Test not found"}, status=404)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+def logout_view(request):
+    """Logout the user"""
+    logout(request)
+    return redirect('landing')
