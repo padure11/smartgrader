@@ -45,6 +45,11 @@
         gap: 20px;
     }
 
+    .test-card-link {
+        text-decoration: none;
+        display: block;
+    }
+
     .test-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 25px;
@@ -54,7 +59,7 @@
         cursor: pointer;
     }
 
-    .test-card:hover {
+    .test-card-link:hover .test-card {
         transform: translateY(-10px);
         box-shadow: 0 10px 30px rgba(105, 200, 160, 0.3);
     }
@@ -116,16 +121,18 @@
     {% if tests %}
         <div class="test-grid">
             {% for test in tests %}
-                <div class="test-card">
-                    <h3>{{ test.title }}</h3>
-                    {% if test.description %}
-                        <p>{{ test.description|truncatewords:20 }}</p>
-                    {% endif %}
-                    <div class="test-meta">
-                        <span class="test-meta-item">{{ test.num_questions }} questions</span>
-                        <span class="test-meta-item">{{ test.created_at|date:"M d, Y" }}</span>
+                <a href="{% url 'test-detail' test.id %}" class="test-card-link">
+                    <div class="test-card">
+                        <h3>{{ test.title }}</h3>
+                        {% if test.description %}
+                            <p>{{ test.description|truncatewords:20 }}</p>
+                        {% endif %}
+                        <div class="test-meta">
+                            <span class="test-meta-item">{{ test.num_questions }} questions</span>
+                            <span class="test-meta-item">{{ test.created_at|date:"M d, Y" }}</span>
+                        </div>
                     </div>
-                </div>
+                </a>
             {% endfor %}
         </div>
     {% else %}

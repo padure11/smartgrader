@@ -151,3 +151,68 @@ def test_list_page(request):
     """Render the test list page"""
     tests = Test.objects.all().order_by('-created_at')
     return render(request, 'accounts/test_list.html', {'tests': tests})
+
+
+def test_detail_page(request, test_id):
+    """Render the test detail page"""
+    try:
+        test = Test.objects.get(id=test_id)
+        return render(request, 'accounts/test_detail.html', {'test': test})
+    except Test.DoesNotExist:
+        return render(request, 'accounts/test_not_found.html', status=404)
+
+
+@csrf_exempt
+def generate_pdf_api(request, test_id):
+    """Generate PDF for an existing test"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=400)
+
+    try:
+        test = Test.objects.get(id=test_id)
+
+        # Create media directory if it doesn't exist
+        media_root = os.path.join(settings.BASE_DIR, 'media', 'tests')
+        os.makedirs(media_root, exist_ok=True)
+
+        # Generate PDF
+        pdf_filename = f"test_{test.id}.pdf"
+        pdf_path = os.path.join(media_root, pdf_filename)
+        generate_test_pdf_from_db(test, pdf_path)
+
+        return JsonResponse({
+            "message": "PDF generated successfully!",
+            "pdf_url": f"/media/tests/{pdf_filename}"
+        }, status=200)
+
+    except Test.DoesNotExist:
+        return JsonResponse({"error": "Test not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def delete_test_api(request, test_id):
+    """Delete a test"""
+    if request.method != "DELETE" and request.method != "POST":
+        return JsonResponse({"error": "Only DELETE or POST allowed"}, status=400)
+
+    try:
+        test = Test.objects.get(id=test_id)
+        test_title = test.title
+
+        # Delete associated PDF if it exists
+        pdf_path = os.path.join(settings.BASE_DIR, 'media', 'tests', f"test_{test.id}.pdf")
+        if os.path.exists(pdf_path):
+            os.remove(pdf_path)
+
+        test.delete()
+
+        return JsonResponse({
+            "message": f"Test '{test_title}' deleted successfully!"
+        }, status=200)
+
+    except Test.DoesNotExist:
+        return JsonResponse({"error": "Test not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
