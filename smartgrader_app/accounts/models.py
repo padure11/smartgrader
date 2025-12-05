@@ -65,3 +65,22 @@ class Test(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.created_by.email}"
+
+
+class Submission(models.Model):
+    test = models.ForeignKey(Test, on_delete=models.CASCADE, related_name='submissions')
+    student_name = models.CharField(max_length=255, blank=True, null=True)
+    image = models.ImageField(upload_to='submissions/')
+    answers = models.JSONField()  # Stores detected answers as array [0, 1, 2, ...] where index is question number
+    score = models.IntegerField()  # Number of correct answers
+    total_questions = models.IntegerField()
+    percentage = models.FloatField()
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    processed = models.BooleanField(default=False)
+    error_message = models.TextField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        return f"{self.student_name or 'Unknown'} - {self.test.title} - {self.score}/{self.total_questions}"

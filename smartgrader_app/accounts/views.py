@@ -5,11 +5,15 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
-from .models import Test
+from .models import Test, Submission
 import json
 import os
 import sys
 import random
+import zipfile
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from .omr_processor import process_omr_image, grade_submission
 
 # Add pdf_generator to path
 sys.path.append(os.path.join(settings.BASE_DIR.parent, 'pdf_generator'))
@@ -270,3 +274,165 @@ def logout_view(request):
     """Logout the user"""
     logout(request)
     return redirect('landing')
+
+@csrf_exempt
+@login_required
+def upload_submissions(request, test_id):
+    """Upload and process student submissions (images or zip file)"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=400)
+
+    try:
+        test = Test.objects.get(id=test_id, created_by=request.user)
+        
+        # Get correct answers from test
+        correct_answers = [q['correct_answer'] for q in test.questions]
+        
+        uploaded_files = request.FILES.getlist('files')
+        zip_file = request.FILES.get('zip_file')
+        
+        results = []
+        errors = []
+        
+        # Handle zip file upload
+        if zip_file:
+            try:
+                # Save zip temporarily
+                zip_path = os.path.join(settings.BASE_DIR, 'media', 'temp', zip_file.name)
+                os.makedirs(os.path.dirname(zip_path), exist_ok=True)
+                
+                with open(zip_path, 'wb+') as destination:
+                    for chunk in zip_file.chunks():
+                        destination.write(chunk)
+                
+                # Extract and process images
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    extract_path = os.path.join(settings.BASE_DIR, 'media', 'temp', 'extracted')
+                    zip_ref.extractall(extract_path)
+                    
+                    # Process each image in zip
+                    for filename in os.listdir(extract_path):
+                        if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
+                            image_path = os.path.join(extract_path, filename)
+                            result = process_single_submission(test, image_path, filename, correct_answers)
+                            results.append(result)
+                
+                # Cleanup
+                os.remove(zip_path)
+                import shutil
+                shutil.rmtree(extract_path)
+                
+            except Exception as e:
+                errors.append(f"Error processing zip file: {str(e)}")
+        
+        # Handle individual image uploads
+        elif uploaded_files:
+            for uploaded_file in uploaded_files:
+                # Save file temporarily
+                temp_path = os.path.join(settings.BASE_DIR, 'media', 'temp', uploaded_file.name)
+                os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+                
+                with open(temp_path, 'wb+') as destination:
+                    for chunk in uploaded_file.chunks():
+                        destination.write(chunk)
+                
+                # Process image
+                result = process_single_submission(test, temp_path, uploaded_file.name, correct_answers)
+                results.append(result)
+                
+                # Cleanup
+                os.remove(temp_path)
+        else:
+            return JsonResponse({"error": "No files uploaded"}, status=400)
+        
+        return JsonResponse({
+            "message": f"Processed {len(results)} submission(s)",
+            "results": results,
+            "errors": errors
+        }, status=200)
+        
+    except Test.DoesNotExist:
+        return JsonResponse({"error": "Test not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+def process_single_submission(test, image_path, filename, correct_answers):
+    """Process a single submission image"""
+    try:
+        # Run OMR processing
+        omr_result = process_omr_image(image_path, test.num_questions, test.num_options)
+        
+        if not omr_result['success']:
+            return {
+                'filename': filename,
+                'success': False,
+                'error': omr_result['error']
+            }
+        
+        detected_answers = omr_result['answers']
+        
+        # Grade the submission
+        grading = grade_submission(detected_answers, correct_answers)
+        
+        # Save to database
+        # First, save the image permanently
+        submission_image_path = f"submissions/test_{test.id}_{filename}"
+        with open(image_path, 'rb') as f:
+            image_content = f.read()
+        saved_path = default_storage.save(submission_image_path, ContentFile(image_content))
+        
+        submission = Submission.objects.create(
+            test=test,
+            student_name=filename.split('.')[0],  # Use filename as student name
+            image=saved_path,
+            answers=detected_answers,
+            score=grading['score'],
+            total_questions=grading['total'],
+            percentage=grading['percentage'],
+            processed=True
+        )
+        
+        return {
+            'filename': filename,
+            'success': True,
+            'submission_id': submission.id,
+            'score': grading['score'],
+            'total': grading['total'],
+            'percentage': grading['percentage']
+        }
+        
+    except Exception as e:
+        return {
+            'filename': filename,
+            'success': False,
+            'error': str(e)
+        }
+
+
+@login_required
+def get_test_submissions(request, test_id):
+    """Get all submissions for a test"""
+    try:
+        test = Test.objects.get(id=test_id, created_by=request.user)
+        submissions = test.submissions.all()
+        
+        submissions_data = [{
+            'id': sub.id,
+            'student_name': sub.student_name,
+            'score': sub.score,
+            'total': sub.total_questions,
+            'percentage': sub.percentage,
+            'submitted_at': sub.submitted_at.strftime('%Y-%m-%d %H:%M'),
+            'image_url': sub.image.url if sub.image else None
+        } for sub in submissions]
+        
+        return JsonResponse({
+            'submissions': submissions_data,
+            'count': len(submissions_data)
+        }, status=200)
+        
+    except Test.DoesNotExist:
+        return JsonResponse({"error": "Test not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
