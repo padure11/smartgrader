@@ -95,3 +95,25 @@ body {
     background: #333;
     transform: translateY(-2px);
 }
+
+.user-info {
+    color: #000;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+}
+
+.logout-btn {
+    background: #000;
+    color: #fff !important;
+    padding: 8px 16px;
+    border-radius: 10px;
+    transition: background 0.3s, transform 0.2s;
+}
+
+.logout-btn:hover {
+    background: #333;
+    transform: translateY(-2px);
+}

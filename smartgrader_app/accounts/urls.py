@@ -11,6 +11,7 @@ urlpatterns = [
 
     path("register/", register_page, name="register"),
     path("login/", login_page, name="login"),
+    path("logout/", views.logout_view, name="logout"),
     path("test-generator/", views.test_generator_page, name="test-generator"),
     path("tests/", views.test_list_page, name="test-list"),
     path("tests/<int:test_id>/", views.test_detail_page, name="test-detail"),
