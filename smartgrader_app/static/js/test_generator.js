@@ -96,24 +96,30 @@ document.addEventListener('DOMContentLoaded', function() {
     function parseJSONFile(content) {
         const data = JSON.parse(content);
 
+        // Helper function to parse correct answer (handles both string and number)
+        const parseCorrectAnswer = (q) => {
+            let answer = q.correct_answer !== undefined ? q.correct_answer :
+                        (q.correctAnswer !== undefined ? q.correctAnswer : 0);
+            // Convert string to number if needed
+            return typeof answer === 'string' ? parseInt(answer) : answer;
+        };
+
         // Support multiple JSON formats
         // Format 1: Array of question objects
         if (Array.isArray(data)) {
             return data.map(q => ({
                 question: q.question || q.text || q.questionText || '',
                 options: q.options || q.answers || q.choices || [],
-                correct_answer: q.correct_answer !== undefined ? q.correct_answer :
-                               (q.correctAnswer !== undefined ? q.correctAnswer : 0)
+                correct_answer: parseCorrectAnswer(q)
             }));
         }
 
-        // Format 2: Object with questions array
+        // Format 2: Object with questions array (including formats with num_questions, num_answers)
         if (data.questions && Array.isArray(data.questions)) {
             return data.questions.map(q => ({
                 question: q.question || q.text || q.questionText || '',
                 options: q.options || q.answers || q.choices || [],
-                correct_answer: q.correct_answer !== undefined ? q.correct_answer :
-                               (q.correctAnswer !== undefined ? q.correctAnswer : 0)
+                correct_answer: parseCorrectAnswer(q)
             }));
         }
 
