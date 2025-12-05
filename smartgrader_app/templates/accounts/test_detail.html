@@ -524,7 +524,17 @@ function uploadFiles(files, isZip) {
             // Show results
             if (data.results && data.results.length > 0) {
                 let successCount = data.results.filter(r => r.success).length;
+                let failedResults = data.results.filter(r => !r.success);
+
                 statusDiv.innerHTML += `<br>Successfully processed: ${successCount}/${data.results.length}`;
+
+                // Show error details for failed submissions
+                if (failedResults.length > 0) {
+                    statusDiv.innerHTML += '<br><br><strong>Errors:</strong>';
+                    failedResults.forEach(result => {
+                        statusDiv.innerHTML += `<br>- ${result.filename}: ${result.error}`;
+                    });
+                }
             }
 
             // Reload submissions
