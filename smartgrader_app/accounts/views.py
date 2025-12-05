@@ -9,6 +9,7 @@ from .models import Test
 import json
 import os
 import sys
+import random
 
 # Add pdf_generator to path
 sys.path.append(os.path.join(settings.BASE_DIR.parent, 'pdf_generator'))
@@ -100,39 +101,86 @@ def create_test(request):
         if not questions or len(questions) == 0:
             return JsonResponse({"error": "At least one question is required"}, status=400)
 
-        # Create the test for the logged-in user
-        test = Test.objects.create(
-            title=title,
-            description=data.get("description", ""),
-            questions=questions,
-            num_questions=len(questions),
-            num_options=num_options,
-            created_by=request.user
-        )
+        # Check if randomization is enabled
+        enable_randomization = data.get("enable_randomization", False)
+        num_variants = data.get("num_variants", 1)
+        questions_per_variant = data.get("questions_per_variant", len(questions))
 
-        response_data = {
-            "message": "Test created successfully!",
-            "test_id": test.id,
-            "title": test.title,
-            "num_questions": test.num_questions
-        }
+        created_tests = []
 
-        # If generate_pdf flag is set, generate the PDF
+        if enable_randomization and num_variants > 1:
+            # Validate randomization parameters
+            if questions_per_variant > len(questions):
+                return JsonResponse({
+                    "error": f"Cannot create variants with {questions_per_variant} questions when you only have {len(questions)} questions"
+                }, status=400)
+
+            # Create multiple randomized test variants
+            for i in range(num_variants):
+                # Randomly select questions
+                variant_questions = random.sample(questions, questions_per_variant)
+
+                # Create test variant
+                variant_title = f"{title} - Variant {i + 1}"
+                test = Test.objects.create(
+                    title=variant_title,
+                    description=data.get("description", ""),
+                    questions=variant_questions,
+                    num_questions=len(variant_questions),
+                    num_options=num_options,
+                    created_by=request.user
+                )
+                created_tests.append(test)
+
+            response_data = {
+                "message": f"Successfully created {num_variants} test variants!",
+                "test_ids": [test.id for test in created_tests],
+                "num_variants": num_variants,
+                "questions_per_variant": questions_per_variant
+            }
+
+        else:
+            # Create single test (no randomization)
+            test = Test.objects.create(
+                title=title,
+                description=data.get("description", ""),
+                questions=questions,
+                num_questions=len(questions),
+                num_options=num_options,
+                created_by=request.user
+            )
+            created_tests.append(test)
+
+            response_data = {
+                "message": "Test created successfully!",
+                "test_id": test.id,
+                "title": test.title,
+                "num_questions": test.num_questions
+            }
+
+        # If generate_pdf flag is set, generate PDFs for all created tests
         if data.get("generate_pdf", False):
             try:
                 # Create media directory if it doesn't exist
                 media_root = os.path.join(settings.BASE_DIR, 'media', 'tests')
                 os.makedirs(media_root, exist_ok=True)
 
-                # Generate PDF
-                pdf_filename = f"test_{test.id}.pdf"
-                pdf_path = os.path.join(media_root, pdf_filename)
-                generate_test_pdf_from_db(test, pdf_path)
+                pdf_urls = []
+                for test in created_tests:
+                    pdf_filename = f"test_{test.id}.pdf"
+                    pdf_path = os.path.join(media_root, pdf_filename)
+                    generate_test_pdf_from_db(test, pdf_path)
+                    pdf_urls.append(f"/media/tests/{pdf_filename}")
 
-                response_data["message"] = "Test created and PDF generated successfully!"
-                response_data["pdf_url"] = f"/media/tests/{pdf_filename}"
+                if len(created_tests) > 1:
+                    response_data["message"] = f"{num_variants} test variants created and PDFs generated successfully!"
+                    response_data["pdf_urls"] = pdf_urls
+                else:
+                    response_data["message"] = "Test created and PDF generated successfully!"
+                    response_data["pdf_url"] = pdf_urls[0]
+
             except Exception as e:
-                response_data["message"] = "Test created but PDF generation failed."
+                response_data["message"] = "Tests created but PDF generation failed."
                 response_data["pdf_error"] = str(e)
 
         return JsonResponse(response_data, status=201)
