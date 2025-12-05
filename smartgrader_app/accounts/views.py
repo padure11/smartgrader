@@ -371,20 +371,23 @@ def process_single_submission(test, image_path, filename, correct_answers):
             }
         
         detected_answers = omr_result['answers']
-        
+        first_name = omr_result.get('first_name')
+        last_name = omr_result.get('last_name')
+
         # Grade the submission
         grading = grade_submission(detected_answers, correct_answers)
-        
+
         # Save to database
         # First, save the image permanently
         submission_image_path = f"submissions/test_{test.id}_{filename}"
         with open(image_path, 'rb') as f:
             image_content = f.read()
         saved_path = default_storage.save(submission_image_path, ContentFile(image_content))
-        
+
         submission = Submission.objects.create(
             test=test,
-            student_name=filename.split('.')[0],  # Use filename as student name
+            first_name=first_name,
+            last_name=last_name,
             image=saved_path,
             answers=detected_answers,
             score=grading['score'],
@@ -392,11 +395,12 @@ def process_single_submission(test, image_path, filename, correct_answers):
             percentage=grading['percentage'],
             processed=True
         )
-        
+
         return {
             'filename': filename,
             'success': True,
             'submission_id': submission.id,
+            'student_name': submission.full_name,
             'score': grading['score'],
             'total': grading['total'],
             'percentage': grading['percentage']
@@ -419,7 +423,7 @@ def get_test_submissions(request, test_id):
         
         submissions_data = [{
             'id': sub.id,
-            'student_name': sub.student_name,
+            'student_name': sub.full_name,
             'score': sub.score,
             'total': sub.total_questions,
             'percentage': sub.percentage,
