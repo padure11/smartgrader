@@ -148,6 +148,78 @@
     font-size: 13px;
 }
 
+/* Import Section Styles */
+.import-options {
+    margin-top: 15px;
+}
+
+.import-group {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.file-upload-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: 500;
+}
+
+.file-upload-label:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.upload-icon {
+    font-size: 20px;
+}
+
+.import-hint {
+    margin-top: 10px;
+    color: #666;
+    font-size: 13px;
+    font-style: italic;
+}
+
+/* Randomization Section Styles */
+.randomization-options {
+    margin-top: 15px;
+}
+
+.randomization-options .form-group label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.randomization-options input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+#randomization-settings {
+    margin-top: 20px;
+    padding: 20px;
+    background: white;
+    border-radius: 6px;
+    border-left: 4px solid #69c8a0;
+}
+
+#randomization-settings small {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+    font-size: 12px;
+}
+
 /* Button Styles */
 .btn {
     padding: 10px 20px;
@@ -157,6 +229,24 @@
     font-weight: 500;
     cursor: pointer;
     transition: background 0.3s;
+}
+
+.btn-ai {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-ai:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
+}
+
+.btn-ai:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .btn-primary {

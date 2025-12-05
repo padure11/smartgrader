@@ -8,9 +8,62 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveBtn = document.getElementById('save-btn');
     const saveAndGenerateBtn = document.getElementById('save-and-generate-btn');
     const numOptionsSelect = document.getElementById('num-options');
+    const fileUpload = document.getElementById('file-upload');
+    const enableRandomization = document.getElementById('enable-randomization');
+    const randomizationSettings = document.getElementById('randomization-settings');
 
     // Add first question by default
     addQuestion();
+
+    // File upload handler
+    fileUpload.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                const content = event.target.result;
+                let questions;
+
+                if (file.name.endsWith('.json')) {
+                    questions = parseJSONFile(content);
+                } else if (file.name.endsWith('.csv')) {
+                    questions = parseCSVFile(content);
+                } else {
+                    showError('Unsupported file format. Please upload a CSV or JSON file.');
+                    return;
+                }
+
+                if (questions && questions.length > 0) {
+                    // Clear existing questions
+                    questionsContainer.innerHTML = '';
+                    questionCount = 0;
+
+                    // Add imported questions
+                    questions.forEach(q => {
+                        addQuestionFromData(q);
+                    });
+
+                    showSuccess(`Successfully imported ${questions.length} questions!`);
+                } else {
+                    showError('No valid questions found in the file.');
+                }
+            } catch (error) {
+                showError('Error parsing file: ' + error.message);
+                console.error('Parse error:', error);
+            }
+        };
+
+        reader.readAsText(file);
+        // Reset file input
+        e.target.value = '';
+    });
+
+    // Randomization toggle
+    enableRandomization.addEventListener('change', function() {
+        randomizationSettings.style.display = this.checked ? 'block' : 'none';
+    });
 
     // Add question button click
     addQuestionBtn.addEventListener('click', function() {
@@ -39,6 +92,143 @@ document.addEventListener('DOMContentLoaded', function() {
     numOptionsSelect.addEventListener('change', function() {
         updateAllQuestionOptions();
     });
+
+    function parseJSONFile(content) {
+        const data = JSON.parse(content);
+
+        // Support multiple JSON formats
+        // Format 1: Array of question objects
+        if (Array.isArray(data)) {
+            return data.map(q => ({
+                question: q.question || q.text || q.questionText || '',
+                options: q.options || q.answers || q.choices || [],
+                correct_answer: q.correct_answer !== undefined ? q.correct_answer :
+                               (q.correctAnswer !== undefined ? q.correctAnswer : 0)
+            }));
+        }
+
+        // Format 2: Object with questions array
+        if (data.questions && Array.isArray(data.questions)) {
+            return data.questions.map(q => ({
+                question: q.question || q.text || q.questionText || '',
+                options: q.options || q.answers || q.choices || [],
+                correct_answer: q.correct_answer !== undefined ? q.correct_answer :
+                               (q.correctAnswer !== undefined ? q.correctAnswer : 0)
+            }));
+        }
+
+        return [];
+    }
+
+    function parseCSVFile(content) {
+        const lines = content.split('\n').filter(line => line.trim());
+        if (lines.length < 2) return [];
+
+        const questions = [];
+
+        // Skip header row, process data rows
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            // Parse CSV line (handle quoted values)
+            const values = parseCSVLine(line);
+
+            if (values.length >= 3) {
+                // Format: question, option1, option2, option3, ..., correct_answer_index
+                const question = values[0];
+                const correctAnswer = parseInt(values[values.length - 1]) || 0;
+                const options = values.slice(1, values.length - 1);
+
+                questions.push({
+                    question: question,
+                    options: options,
+                    correct_answer: correctAnswer
+                });
+            }
+        }
+
+        return questions;
+    }
+
+    function parseCSVLine(line) {
+        const values = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                values.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+
+        if (current) {
+            values.push(current.trim());
+        }
+
+        return values;
+    }
+
+    function addQuestionFromData(questionData) {
+        questionCount++;
+        const numOptions = Math.max(questionData.options.length, parseInt(numOptionsSelect.value));
+
+        const questionCard = document.createElement('div');
+        questionCard.className = 'question-card';
+        questionCard.dataset.questionId = questionCount;
+
+        const optionLabels = ['A', 'B', 'C', 'D', 'E'];
+        let optionsHTML = '';
+
+        for (let i = 0; i < numOptions; i++) {
+            const optionValue = questionData.options[i] || '';
+            optionsHTML += `
+                <div class="option-group">
+                    <label>Option ${optionLabels[i]}:</label>
+                    <input type="text"
+                           name="question_${questionCount}_option_${i}"
+                           placeholder="Enter option ${optionLabels[i]}"
+                           value="${optionValue}"
+                           required>
+                    <div class="correct-answer-label">
+                        <input type="radio"
+                               name="question_${questionCount}_correct"
+                               value="${i}"
+                               ${i === questionData.correct_answer ? 'checked' : ''}>
+                        <span>Correct</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        questionCard.innerHTML = `
+            <div class="question-header">
+                <span class="question-number">Question ${questionCount}</span>
+                <button type="button" class="remove-question-btn" onclick="removeQuestion(${questionCount})">
+                    Remove
+                </button>
+            </div>
+            <div class="form-group">
+                <label>Question Text *</label>
+                <textarea name="question_${questionCount}_text"
+                          placeholder="Enter your question here"
+                          required>${questionData.question}</textarea>
+            </div>
+            <div class="options-container">
+                <label style="margin-bottom: 10px; display: block;">Options & Correct Answer *</label>
+                ${optionsHTML}
+            </div>
+        `;
+
+        questionsContainer.appendChild(questionCard);
+    }
 
     function addQuestion() {
         questionCount++;
@@ -205,13 +395,36 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Check for randomization
+        const enableRandom = document.getElementById('enable-randomization').checked;
+        let numVariants = 1;
+        let questionsPerVariant = questions.length;
+
+        if (enableRandom) {
+            numVariants = parseInt(document.getElementById('num-variants').value) || 2;
+            questionsPerVariant = parseInt(document.getElementById('questions-per-variant').value);
+
+            if (!questionsPerVariant || questionsPerVariant <= 0) {
+                showError('Please specify the number of questions per variant');
+                return;
+            }
+
+            if (questionsPerVariant > questions.length) {
+                showError(`Cannot create variants with ${questionsPerVariant} questions when you only have ${questions.length} questions in the pool`);
+                return;
+            }
+        }
+
         // Prepare payload
         const payload = {
             title: title,
             description: description,
             num_options: numOptions,
             questions: questions,
-            generate_pdf: generatePDF
+            generate_pdf: generatePDF,
+            enable_randomization: enableRandom,
+            num_variants: numVariants,
+            questions_per_variant: questionsPerVariant
         };
 
         // Send to API
@@ -229,14 +442,24 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 showSuccess(data.message || 'Test created successfully!');
 
-                if (data.pdf_url) {
+                // Handle multiple PDFs for variants
+                if (data.pdf_urls && data.pdf_urls.length > 0) {
+                    setTimeout(() => {
+                        data.pdf_urls.forEach(url => window.open(url, '_blank'));
+                        window.location.href = '/tests/';
+                    }, 2000);
+                }
+                // Handle single PDF
+                else if (data.pdf_url) {
                     setTimeout(() => {
                         window.open(data.pdf_url, '_blank');
-                        window.location.href = '/';
+                        window.location.href = '/tests/';
                     }, 1500);
-                } else {
+                }
+                // No PDF generation
+                else {
                     setTimeout(() => {
-                        window.location.href = '/';
+                        window.location.href = '/tests/';
                     }, 1500);
                 }
             }
