@@ -35,39 +35,54 @@ document.addEventListener('DOMContentLoaded', function() {
         const file = e.target.files[0];
         if (!file) return;
 
+        console.log('File selected:', file.name);
+
         const reader = new FileReader();
         reader.onload = function(event) {
             try {
                 const content = event.target.result;
+                console.log('File content loaded, length:', content.length);
                 let questions;
 
                 if (file.name.endsWith('.json')) {
+                    console.log('Parsing as JSON...');
                     questions = parseJSONFile(content);
+                    console.log('Parsed questions:', questions);
                 } else if (file.name.endsWith('.csv')) {
+                    console.log('Parsing as CSV...');
                     questions = parseCSVFile(content);
+                    console.log('Parsed questions:', questions);
                 } else {
                     showError('Unsupported file format. Please upload a CSV or JSON file.');
                     return;
                 }
 
                 if (questions && questions.length > 0) {
+                    console.log('Importing', questions.length, 'questions');
                     // Clear existing questions
                     questionsContainer.innerHTML = '';
                     questionCount = 0;
 
                     // Add imported questions
-                    questions.forEach(q => {
+                    questions.forEach((q, index) => {
+                        console.log(`Adding question ${index + 1}:`, q);
                         addQuestionFromData(q);
                     });
 
                     showSuccess(`Successfully imported ${questions.length} questions!`);
                 } else {
+                    console.error('No questions parsed from file');
                     showError('No valid questions found in the file.');
                 }
             } catch (error) {
                 showError('Error parsing file: ' + error.message);
                 console.error('Parse error:', error);
             }
+        };
+
+        reader.onerror = function(error) {
+            console.error('File reading error:', error);
+            showError('Error reading file. Please try again.');
         };
 
         reader.readAsText(file);
@@ -198,6 +213,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function addQuestionFromData(questionData) {
+        // Validate question data
+        if (!questionData || !questionData.question || !questionData.options || questionData.options.length === 0) {
+            console.error('Invalid question data:', questionData);
+            return;
+        }
+
         questionCount++;
         const numOptions = Math.max(questionData.options.length, parseInt(numOptionsSelect.value));
 
@@ -208,8 +229,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const optionLabels = ['A', 'B', 'C', 'D', 'E'];
         let optionsHTML = '';
 
+        // Escape HTML in option values
+        const escapeHtml = (text) => {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        };
+
         for (let i = 0; i < numOptions; i++) {
-            const optionValue = questionData.options[i] || '';
+            const optionValue = escapeHtml(questionData.options[i] || '');
             optionsHTML += `
                 <div class="option-group">
                     <label>Option ${optionLabels[i]}:</label>
@@ -229,6 +257,8 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
 
+        const questionText = escapeHtml(questionData.question);
+
         questionCard.innerHTML = `
             <div class="question-header">
                 <span class="question-number">Question ${questionCount}</span>
@@ -240,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <label>Question Text *</label>
                 <textarea name="question_${questionCount}_text"
                           placeholder="Enter your question here"
-                          required>${questionData.question}</textarea>
+                          required>${questionText}</textarea>
             </div>
             <div class="options-container">
                 <label style="margin-bottom: 10px; display: block;">Options & Correct Answer *</label>
