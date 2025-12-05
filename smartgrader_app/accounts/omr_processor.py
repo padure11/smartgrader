@@ -2,6 +2,13 @@ import cv2
 import numpy as np
 import sys
 import os
+import re
+
+try:
+    import pytesseract
+    HAS_TESSERACT = True
+except ImportError:
+    HAS_TESSERACT = False
 
 # Add grade_processor to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'grade_processor'))
@@ -58,6 +65,85 @@ def find_answer_sheet(contours, img_original):
         return warped
     else:
         return None
+
+
+def extract_student_info(img):
+    """
+    Extract student name and surname from the top portion of the image using OCR
+
+    Args:
+        img: Grayscale image of the answer sheet
+
+    Returns:
+        dict with 'first_name' and 'last_name' keys
+    """
+    if not HAS_TESSERACT:
+        return {'first_name': None, 'last_name': None}
+
+    try:
+        # Extract top portion of image (first 15% contains name/surname fields)
+        height, width = img.shape
+        name_region = img[0:int(height * 0.15), :]
+
+        # Preprocess for better OCR
+        # Apply adaptive thresholding
+        name_region = cv2.adaptiveThreshold(
+            name_region, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY, 11, 2
+        )
+
+        # Denoise
+        name_region = cv2.fastNlMeansDenoising(name_region, None, 10, 7, 21)
+
+        # Extract text using OCR
+        text = pytesseract.image_to_string(name_region, config='--psm 6')
+
+        # Parse name and surname from text
+        lines = text.strip().split('\n')
+        first_name = None
+        last_name = None
+
+        for i, line in enumerate(lines):
+            line = line.strip()
+
+            # Look for "Name" field
+            if 'name' in line.lower() and 'surname' not in line.lower():
+                # Try to extract name from same line
+                name_match = re.search(r'name[:\s_]*([A-Za-z]+)', line, re.IGNORECASE)
+                if name_match:
+                    first_name = name_match.group(1).strip()
+                # If not on same line, check next line
+                elif i + 1 < len(lines):
+                    next_line = lines[i + 1].strip()
+                    # Remove underscores and get first word
+                    next_line = re.sub(r'_+', '', next_line)
+                    words = next_line.split()
+                    if words:
+                        first_name = words[0]
+
+            # Look for "Surname" field
+            if 'surname' in line.lower() or 'last name' in line.lower():
+                # Try to extract surname from same line
+                surname_match = re.search(r'surname[:\s_]*([A-Za-z]+)', line, re.IGNORECASE)
+                if surname_match:
+                    last_name = surname_match.group(1).strip()
+                # If not on same line, check next line
+                elif i + 1 < len(lines):
+                    next_line = lines[i + 1].strip()
+                    # Remove underscores and get first word
+                    next_line = re.sub(r'_+', '', next_line)
+                    words = next_line.split()
+                    if words:
+                        last_name = words[0]
+
+        return {
+            'first_name': first_name,
+            'last_name': last_name
+        }
+
+    except Exception as e:
+        print(f"Error extracting student info: {e}")
+        return {'first_name': None, 'last_name': None}
 
 
 def detect_answers(img, num_questions=20, num_options=5):
@@ -138,6 +224,9 @@ def process_omr_image(image_path, num_questions=20, num_options=5):
         if answer_sheet is None:
             return {'success': False, 'error': 'Could not find answer sheet rectangle in image'}
 
+        # Extract student name and surname from original grayscale image
+        student_info = extract_student_info(img_gray)
+
         # Threshold the image
         _, img_threshold = cv2.threshold(answer_sheet, 150, 255, cv2.THRESH_BINARY_INV)
 
@@ -147,6 +236,8 @@ def process_omr_image(image_path, num_questions=20, num_options=5):
         return {
             'success': True,
             'answers': answers,
+            'first_name': student_info['first_name'],
+            'last_name': student_info['last_name'],
             'error': None
         }
 
