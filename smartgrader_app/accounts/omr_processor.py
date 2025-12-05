@@ -65,6 +65,17 @@ def detect_answers(img, num_questions=20, num_options=5):
     Detect marked answers on OMR sheet
     Returns array of selected answer indices for each question
     """
+    # Ensure image dimensions are divisible
+    height, width = img.shape
+
+    # Calculate target dimensions that are evenly divisible
+    target_height = (height // num_questions) * num_questions
+    target_width = (width // num_options) * num_options
+
+    # Resize if necessary
+    if height != target_height or width != target_width:
+        img = cv2.resize(img, (target_width, target_height))
+
     # Split into rows (questions)
     rows = np.vsplit(img, num_questions)
     detected_answers = []
