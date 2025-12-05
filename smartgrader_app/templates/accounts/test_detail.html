@@ -1,0 +1,382 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ test.title }} - SmartGrader{% endblock %}
+
+{% block content %}
+<style>
+    .test-detail-container {
+        max-width: 1200px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+
+    .test-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 40px;
+        border-radius: 15px;
+        color: white;
+        margin-bottom: 30px;
+    }
+
+    .test-header h1 {
+        font-size: 36px;
+        margin-bottom: 15px;
+    }
+
+    .test-meta-info {
+        display: flex;
+        gap: 30px;
+        font-size: 16px;
+        opacity: 0.95;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .actions-section {
+        background: #2a2a2a;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+    }
+
+    .actions-section h2 {
+        color: #fff;
+        font-size: 24px;
+        margin-bottom: 20px;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .action-btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background: #69c8a0;
+        color: #000;
+    }
+
+    .btn-primary:hover {
+        background: #58b38e;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(105, 200, 160, 0.4);
+    }
+
+    .btn-secondary {
+        background: #667eea;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #5568d3;
+        transform: translateY(-2px);
+    }
+
+    .btn-danger {
+        background: #ff4444;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #cc0000;
+        transform: translateY(-2px);
+    }
+
+    .btn-back {
+        background: #444;
+        color: white;
+    }
+
+    .btn-back:hover {
+        background: #555;
+    }
+
+    .questions-section {
+        background: #2a2a2a;
+        padding: 30px;
+        border-radius: 15px;
+    }
+
+    .questions-section h2 {
+        color: #fff;
+        font-size: 24px;
+        margin-bottom: 25px;
+    }
+
+    .question-item {
+        background: #1c1c1c;
+        padding: 25px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border-left: 4px solid #69c8a0;
+    }
+
+    .question-number {
+        color: #69c8a0;
+        font-weight: bold;
+        font-size: 18px;
+        margin-bottom: 10px;
+    }
+
+    .question-text {
+        color: #fff;
+        font-size: 16px;
+        margin-bottom: 15px;
+        line-height: 1.6;
+    }
+
+    .options-list {
+        list-style: none;
+        padding: 0;
+    }
+
+    .option-item {
+        color: #ccc;
+        padding: 8px 0;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .option-label {
+        background: #444;
+        color: #fff;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 14px;
+    }
+
+    .option-item.correct {
+        color: #69c8a0;
+        font-weight: 600;
+    }
+
+    .option-item.correct .option-label {
+        background: #69c8a0;
+        color: #000;
+    }
+
+    .message {
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        font-weight: 500;
+    }
+
+    .message.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    .message.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+
+    .message.hidden {
+        display: none;
+    }
+
+    @media (max-width: 768px) {
+        .test-header {
+            padding: 25px;
+        }
+
+        .test-header h1 {
+            font-size: 28px;
+        }
+
+        .test-meta-info {
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+        }
+
+        .action-btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
+<div class="test-detail-container">
+    <div id="message" class="message hidden"></div>
+
+    <div class="test-header">
+        <h1>{{ test.title }}</h1>
+        {% if test.description %}
+            <p style="margin-bottom: 20px; opacity: 0.9;">{{ test.description }}</p>
+        {% endif %}
+        <div class="test-meta-info">
+            <div class="meta-item">
+                <span>📝</span>
+                <span>{{ test.num_questions }} Questions</span>
+            </div>
+            <div class="meta-item">
+                <span>📊</span>
+                <span>{{ test.num_options }} Options per Question</span>
+            </div>
+            <div class="meta-item">
+                <span>📅</span>
+                <span>Created: {{ test.created_at|date:"F d, Y" }}</span>
+            </div>
+            <div class="meta-item">
+                <span>👤</span>
+                <span>By: {{ test.created_by.email }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="actions-section">
+        <h2>Actions</h2>
+        <div class="action-buttons">
+            <button onclick="generatePDF()" class="action-btn btn-primary">
+                📄 Generate & Download PDF
+            </button>
+            <a href="/tests/" class="action-btn btn-back">
+                ← Back to Tests
+            </a>
+            <button onclick="confirmDelete()" class="action-btn btn-danger">
+                🗑️ Delete Test
+            </button>
+        </div>
+    </div>
+
+    <div class="questions-section">
+        <h2>Questions & Answers</h2>
+        {% for question in test.questions %}
+            <div class="question-item">
+                <div class="question-number">Question {{ forloop.counter }}</div>
+                <div class="question-text">{{ question.question }}</div>
+                <ul class="options-list">
+                    {% for option in question.options %}
+                        <li class="option-item {% if forloop.counter0 == question.correct_answer %}correct{% endif %}">
+                            <span class="option-label">{{ forloop.counter|add:64|chr }}</span>
+                            <span>{{ option }}</span>
+                            {% if forloop.counter0 == question.correct_answer %}
+                                <span style="margin-left: auto; color: #69c8a0;">✓ Correct</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function showMessage(text, type) {
+    const messageDiv = document.getElementById('message');
+    messageDiv.textContent = text;
+    messageDiv.className = 'message ' + type;
+    messageDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    setTimeout(() => {
+        messageDiv.className = 'message hidden';
+    }, 5000);
+}
+
+function generatePDF() {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Generating PDF...';
+
+    fetch('/tests/{{ test.id }}/generate-pdf/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        
+        if (data.error) {
+            showMessage('Error: ' + data.error, 'error');
+        } else {
+            showMessage(data.message, 'success');
+            // Open PDF in new tab
+            if (data.pdf_url) {
+                window.open(data.pdf_url, '_blank');
+            }
+        }
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        showMessage('An error occurred while generating PDF', 'error');
+        console.error('Error:', error);
+    });
+}
+
+function confirmDelete() {
+    if (confirm('Are you sure you want to delete this test? This action cannot be undone.')) {
+        deleteTest();
+    }
+}
+
+function deleteTest() {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Deleting...';
+
+    fetch('/tests/{{ test.id }}/delete/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            btn.disabled = false;
+            btn.innerHTML = '🗑️ Delete Test';
+            showMessage('Error: ' + data.error, 'error');
+        } else {
+            showMessage(data.message, 'success');
+            setTimeout(() => {
+                window.location.href = '/tests/';
+            }, 1500);
+        }
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = '🗑️ Delete Test';
+        showMessage('An error occurred while deleting the test', 'error');
+        console.error('Error:', error);
+    });
+}
+</script>
+{% endblock %}

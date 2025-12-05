@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Test Not Found - SmartGrader{% endblock %}
+
+{% block content %}
+<style>
+    .not-found-container {
+        max-width: 600px;
+        margin: 100px auto;
+        text-align: center;
+        padding: 40px;
+        background: #2a2a2a;
+        border-radius: 15px;
+    }
+
+    .not-found-container h1 {
+        color: #fff;
+        font-size: 48px;
+        margin-bottom: 20px;
+    }
+
+    .not-found-container p {
+        color: #ccc;
+        font-size: 18px;
+        margin-bottom: 30px;
+    }
+
+    .back-btn {
+        display: inline-block;
+        padding: 12px 28px;
+        background: #69c8a0;
+        color: #000;
+        text-decoration: none;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+
+    .back-btn:hover {
+        background: #58b38e;
+        transform: translateY(-2px);
+    }
+</style>
+
+<div class="not-found-container">
+    <h1>404</h1>
+    <p>Test not found. It may have been deleted or the link is incorrect.</p>
+    <a href="/tests/" class="back-btn">← Back to Tests</a>
+</div>
+{% endblock %}
