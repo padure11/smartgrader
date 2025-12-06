@@ -497,6 +497,43 @@ def submission_detail_page(request, test_id, submission_id):
 
 
 @login_required
+def update_submission_name(request, test_id, submission_id):
+    """Update the student name on a submission"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+    try:
+        test = Test.objects.get(id=test_id, created_by=request.user)
+        submission = Submission.objects.get(id=submission_id, test=test)
+
+        data = json.loads(request.body)
+        first_name = data.get('first_name', '').strip()
+        last_name = data.get('last_name', '').strip()
+
+        if not first_name or not last_name:
+            return JsonResponse({'error': 'Both first name and last name are required'}, status=400)
+
+        # Update the submission
+        submission.first_name = first_name
+        submission.last_name = last_name
+        submission.save()
+
+        return JsonResponse({
+            'success': True,
+            'full_name': submission.full_name,
+            'first_name': first_name,
+            'last_name': last_name
+        })
+
+    except (Test.DoesNotExist, Submission.DoesNotExist):
+        return JsonResponse({'error': 'Test or submission not found'}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
 def test_analytics_api(request, test_id):
     """Get analytics for a test"""
     try:
