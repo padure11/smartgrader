@@ -501,6 +501,9 @@
             <button onclick="generatePDF()" class="action-btn btn-primary">
                 Generate PDF
             </button>
+            <button onclick="duplicateTest()" class="action-btn btn-secondary">
+                Duplicate Test
+            </button>
             <button onclick="showAnalytics()" class="action-btn btn-secondary">
                 View Analytics
             </button>
@@ -673,6 +676,41 @@ function deleteTest() {
         btn.disabled = false;
         btn.innerHTML = 'Delete Test';
         Toast.error('Delete Error', 'An error occurred while deleting the test');
+        console.error('Error:', error);
+    });
+}
+
+function duplicateTest() {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = 'Duplicating...';
+
+    fetch('/tests/{{ test.id }}/duplicate/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+
+        if (data.error) {
+            Toast.error('Duplication Failed', data.error);
+        } else {
+            Toast.success('Test Duplicated', data.message);
+            // Redirect to the new test after a short delay
+            setTimeout(() => {
+                window.location.href = '/tests/' + data.test_id + '/';
+            }, 1500);
+        }
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        Toast.error('Duplication Error', 'An error occurred while duplicating the test');
         console.error('Error:', error);
     });
 }

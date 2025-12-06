@@ -289,6 +289,38 @@ def delete_test_api(request, test_id):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+@csrf_exempt
+@login_required
+def duplicate_test_api(request, test_id):
+    """Duplicate an existing test"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=400)
+
+    try:
+        original_test = Test.objects.get(id=test_id, created_by=request.user)
+
+        # Create a new test with the same data
+        new_test = Test.objects.create(
+            title=f"{original_test.title} (Copy)",
+            description=original_test.description,
+            questions=original_test.questions,  # JSONField is copied by value
+            num_questions=original_test.num_questions,
+            num_options=original_test.num_options,
+            created_by=request.user
+        )
+
+        return JsonResponse({
+            "message": f"Test duplicated successfully!",
+            "test_id": new_test.id,
+            "test_title": new_test.title
+        }, status=200)
+
+    except Test.DoesNotExist:
+        return JsonResponse({"error": "Test not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
 def logout_view(request):
     """Logout the user"""
     logout(request)

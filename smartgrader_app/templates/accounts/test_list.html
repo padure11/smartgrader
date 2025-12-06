@@ -192,7 +192,30 @@
     </div>
 
     {% if tests_with_stats %}
-        <div class="test-grid">
+        <!-- Search and Sort Controls -->
+        <div class="test-controls" style="margin-bottom: 30px; display: flex; gap: 15px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 250px;">
+                <input type="text"
+                       id="search-tests"
+                       placeholder="Search tests by title..."
+                       style="width: 100%; padding: 12px 15px; border: 1px solid #444; background: #2a2a2a; color: #fff; border-radius: 6px; font-size: 14px; transition: border-color 0.2s;"
+                       onfocus="this.style.borderColor='#667eea'"
+                       onblur="this.style.borderColor='#444'">
+            </div>
+            <div>
+                <select id="sort-tests"
+                        style="padding: 12px 15px; border: 1px solid #444; background: #2a2a2a; color: #fff; border-radius: 6px; font-size: 14px; cursor: pointer;">
+                    <option value="date-desc">Newest First</option>
+                    <option value="date-asc">Oldest First</option>
+                    <option value="name-asc">Name (A-Z)</option>
+                    <option value="name-desc">Name (Z-A)</option>
+                    <option value="submissions-desc">Most Submissions</option>
+                    <option value="average-desc">Highest Average</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="test-grid" id="test-grid">
             {% for item in tests_with_stats %}
                 <a href="{% url 'test-detail' item.test.id %}" class="test-card-link">
                     <div class="test-card">
@@ -237,4 +260,116 @@
         </div>
     {% endif %}
 </div>
+
+{% block scripts %}
+<script>
+// Store all tests data for filtering
+const allTests = [
+    {% for item in tests_with_stats %}
+    {
+        id: {{ item.test.id }},
+        title: "{{ item.test.title|escapejs }}",
+        description: "{{ item.test.description|default:''|escapejs }}",
+        num_questions: {{ item.test.num_questions }},
+        created_at: "{{ item.test.created_at|date:'M d, Y' }}",
+        created_timestamp: new Date("{{ item.test.created_at.isoformat }}").getTime(),
+        submission_count: {{ item.submission_count }},
+        average_percentage: {{ item.average_percentage }},
+        latest_submission: {% if item.latest_submission %}"{{ item.latest_submission.full_name }}"{% else %}null{% endif %},
+        latest_percentage: {% if item.latest_submission %}{{ item.latest_submission.percentage }}{% else %}0{% endif %}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+function displayTests(tests) {
+    const grid = document.getElementById('test-grid');
+    if (!grid) return;
+
+    if (tests.length === 0) {
+        grid.innerHTML = '<p style="color: #aaa; text-align: center; padding: 40px;">No tests match your search.</p>';
+        return;
+    }
+
+    grid.innerHTML = tests.map(item => `
+        <a href="/tests/${item.id}/" class="test-card-link">
+            <div class="test-card">
+                <h3>${item.title}</h3>
+                ${item.description ? `<p>${item.description.substring(0, 100)}${item.description.length > 100 ? '...' : ''}</p>` : ''}
+
+                <div class="stats-box">
+                    ${item.submission_count > 0 ? `
+                        <div class="stats-row">
+                            <span class="stat-label">Submissions</span>
+                            <span class="stat-value">${item.submission_count}</span>
+                        </div>
+                        <div class="stats-row">
+                            <span class="stat-label">Class Average</span>
+                            <span class="stat-value">${item.average_percentage}%</span>
+                        </div>
+                        ${item.latest_submission ? `
+                            <div class="stat-secondary">
+                                Latest: ${item.latest_submission} (${item.latest_percentage}%)
+                            </div>
+                        ` : ''}
+                    ` : `
+                        <div class="no-stats">No submissions yet</div>
+                    `}
+                </div>
+
+                <div class="test-meta">
+                    <span class="test-meta-item">${item.num_questions} questions</span>
+                    <span class="test-meta-item">${item.created_at}</span>
+                </div>
+            </div>
+        </a>
+    `).join('');
+}
+
+function filterAndSortTests() {
+    const searchTerm = document.getElementById('search-tests').value.toLowerCase();
+    const sortOption = document.getElementById('sort-tests').value;
+
+    // Filter
+    let filtered = allTests.filter(test =>
+        test.title.toLowerCase().includes(searchTerm) ||
+        (test.description && test.description.toLowerCase().includes(searchTerm))
+    );
+
+    // Sort
+    filtered.sort((a, b) => {
+        switch(sortOption) {
+            case 'date-desc':
+                return b.created_timestamp - a.created_timestamp;
+            case 'date-asc':
+                return a.created_timestamp - b.created_timestamp;
+            case 'name-asc':
+                return a.title.localeCompare(b.title);
+            case 'name-desc':
+                return b.title.localeCompare(a.title);
+            case 'submissions-desc':
+                return b.submission_count - a.submission_count;
+            case 'average-desc':
+                return b.average_percentage - a.average_percentage;
+            default:
+                return 0;
+        }
+    });
+
+    displayTests(filtered);
+}
+
+// Add event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search-tests');
+    const sortSelect = document.getElementById('sort-tests');
+
+    if (searchInput) {
+        searchInput.addEventListener('input', filterAndSortTests);
+    }
+
+    if (sortSelect) {
+        sortSelect.addEventListener('change', filterAndSortTests);
+    }
+});
+</script>
 {% endblock %}
