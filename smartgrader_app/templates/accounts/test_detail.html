@@ -12,23 +12,38 @@
     }
 
     .test-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 40px;
-        border-radius: 15px;
+        background: #2a2a2a;
+        border: 1px solid #3a3a3a;
+        padding: 35px 40px;
+        border-radius: 8px;
         color: white;
         margin-bottom: 30px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .test-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
     }
 
     .test-header h1 {
-        font-size: 36px;
+        font-size: 32px;
+        font-weight: 700;
         margin-bottom: 15px;
+        letter-spacing: -0.5px;
     }
 
     .test-meta-info {
         display: flex;
         gap: 30px;
-        font-size: 16px;
-        opacity: 0.95;
+        font-size: 14px;
+        color: #aaa;
     }
 
     .meta-item {
@@ -37,17 +52,30 @@
         gap: 8px;
     }
 
+    .meta-label {
+        color: #888;
+        font-weight: 500;
+    }
+
+    .meta-value {
+        color: #ddd;
+        font-weight: 600;
+    }
+
     .actions-section {
         background: #2a2a2a;
-        padding: 30px;
-        border-radius: 15px;
-        margin-bottom: 30px;
+        border: 1px solid #3a3a3a;
+        padding: 28px 32px;
+        border-radius: 8px;
+        margin-bottom: 24px;
     }
 
     .actions-section h2 {
         color: #fff;
-        font-size: 24px;
+        font-size: 20px;
+        font-weight: 600;
         margin-bottom: 20px;
+        letter-spacing: -0.3px;
     }
 
     .action-buttons {
@@ -112,14 +140,17 @@
 
     .questions-section {
         background: #2a2a2a;
-        padding: 30px;
-        border-radius: 15px;
+        border: 1px solid #3a3a3a;
+        padding: 28px 32px;
+        border-radius: 8px;
     }
 
     .questions-section h2 {
         color: #fff;
-        font-size: 24px;
+        font-size: 20px;
+        font-weight: 600;
         margin-bottom: 25px;
+        letter-spacing: -0.3px;
     }
 
     .question-item {
@@ -362,24 +393,24 @@
     <div class="test-header">
         <h1>{{ test.title }}</h1>
         {% if test.description %}
-            <p style="margin-bottom: 20px; opacity: 0.9;">{{ test.description }}</p>
+            <p style="margin-bottom: 20px; color: #bbb; line-height: 1.5;">{{ test.description }}</p>
         {% endif %}
         <div class="test-meta-info">
             <div class="meta-item">
-                <span>📝</span>
-                <span>{{ test.num_questions }} Questions</span>
+                <span class="meta-label">Questions:</span>
+                <span class="meta-value">{{ test.num_questions }}</span>
             </div>
             <div class="meta-item">
-                <span>📊</span>
-                <span>{{ test.num_options }} Options per Question</span>
+                <span class="meta-label">Options:</span>
+                <span class="meta-value">{{ test.num_options }}</span>
             </div>
             <div class="meta-item">
-                <span>📅</span>
-                <span>Created: {{ test.created_at|date:"F d, Y" }}</span>
+                <span class="meta-label">Created:</span>
+                <span class="meta-value">{{ test.created_at|date:"M d, Y" }}</span>
             </div>
             <div class="meta-item">
-                <span>👤</span>
-                <span>By: {{ test.created_by.email }}</span>
+                <span class="meta-label">By:</span>
+                <span class="meta-value">{{ test.created_by.email }}</span>
             </div>
         </div>
     </div>
@@ -388,33 +419,33 @@
         <h2>Actions</h2>
         <div class="action-buttons">
             <button onclick="generatePDF()" class="action-btn btn-primary">
-                📄 Generate & Download PDF
+                Generate PDF
             </button>
             <button onclick="showAnalytics()" class="action-btn btn-secondary">
-                📊 View Analytics
+                View Analytics
             </button>
             <button onclick="exportResults()" class="action-btn btn-secondary">
-                📥 Export to CSV
+                Export to CSV
             </button>
             <a href="/tests/" class="action-btn btn-back">
                 ← Back to Tests
             </a>
             <button onclick="confirmDelete()" class="action-btn btn-danger">
-                🗑️ Delete Test
+                Delete Test
             </button>
         </div>
     </div>
 
     <div class="actions-section" id="analytics-section" style="display: none;">
-        <h2>📈 Test Analytics</h2>
+        <h2>Test Analytics</h2>
         <div id="analytics-content">
             <p style="color: #ccc;">Loading analytics...</p>
         </div>
     </div>
 
     <div class="actions-section">
-        <h2>📷 Upload Student Submissions</h2>
-        <p style="color: #ccc; margin-bottom: 20px;">Upload scanned answer sheets (images or ZIP file) to automatically grade them using OMR</p>
+        <h2>Upload Submissions</h2>
+        <p style="color: #999; margin-bottom: 20px; font-size: 14px;">Upload scanned answer sheets (images or ZIP file) to automatically grade them using OMR</p>
 
         <div class="upload-area">
             <input type="file" id="image-uploads" multiple accept="image/*" style="display: none;">
@@ -422,10 +453,10 @@
 
             <div class="upload-buttons">
                 <button onclick="document.getElementById('image-uploads').click()" class="action-btn btn-secondary">
-                    📁 Upload Images
+                    Upload Images
                 </button>
                 <button onclick="document.getElementById('zip-upload').click()" class="action-btn btn-secondary">
-                    📦 Upload ZIP File
+                    Upload ZIP File
                 </button>
             </div>
 
@@ -434,25 +465,27 @@
     </div>
 
     <div class="actions-section" id="submissions-section">
-        <h2>📊 Graded Submissions</h2>
+        <h2>Graded Submissions</h2>
 
         <!-- Search and Sort Controls -->
         <div class="submissions-controls" style="margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap;">
             <div style="flex: 1; min-width: 250px;">
                 <input type="text"
                        id="search-submissions"
-                       placeholder="🔍 Search by name..."
-                       style="width: 100%; padding: 10px 15px; border: 1px solid #555; background: #2a2a2a; color: #fff; border-radius: 8px; font-size: 14px;">
+                       placeholder="Search by name..."
+                       style="width: 100%; padding: 10px 15px; border: 1px solid #444; background: #1c1c1c; color: #fff; border-radius: 6px; font-size: 14px; transition: border-color 0.2s;"
+                       onfocus="this.style.borderColor='#667eea'"
+                       onblur="this.style.borderColor='#444'">
             </div>
             <div>
                 <select id="sort-submissions"
-                        style="padding: 10px 15px; border: 1px solid #555; background: #2a2a2a; color: #fff; border-radius: 8px; font-size: 14px; cursor: pointer;">
-                    <option value="percentage-desc">📊 Highest Score First</option>
-                    <option value="percentage-asc">📉 Lowest Score First</option>
-                    <option value="name-asc">🔤 Name (A-Z)</option>
-                    <option value="name-desc">🔤 Name (Z-A)</option>
-                    <option value="date-desc">📅 Newest First</option>
-                    <option value="date-asc">📅 Oldest First</option>
+                        style="padding: 10px 15px; border: 1px solid #444; background: #1c1c1c; color: #fff; border-radius: 6px; font-size: 14px; cursor: pointer;">
+                    <option value="percentage-desc">Highest Score First</option>
+                    <option value="percentage-asc">Lowest Score First</option>
+                    <option value="name-asc">Name (A-Z)</option>
+                    <option value="name-desc">Name (Z-A)</option>
+                    <option value="date-desc">Newest First</option>
+                    <option value="date-asc">Oldest First</option>
                 </select>
             </div>
         </div>
@@ -495,7 +528,7 @@ function generatePDF() {
     const btn = event.target;
     const originalText = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '⏳ Generating PDF...';
+    btn.innerHTML = 'Generating PDF...';
 
     fetch('/tests/{{ test.id }}/generate-pdf/', {
         method: 'POST',
@@ -535,7 +568,7 @@ function confirmDelete() {
 function deleteTest() {
     const btn = event.target;
     btn.disabled = true;
-    btn.innerHTML = '⏳ Deleting...';
+    btn.innerHTML = 'Deleting...';
 
     fetch('/tests/{{ test.id }}/delete/', {
         method: 'POST',
@@ -547,7 +580,7 @@ function deleteTest() {
     .then(data => {
         if (data.error) {
             btn.disabled = false;
-            btn.innerHTML = '🗑️ Delete Test';
+            btn.innerHTML = 'Delete Test';
             Toast.error('Delete Failed', data.error);
         } else {
             Toast.success('Test Deleted', data.message);
@@ -558,7 +591,7 @@ function deleteTest() {
     })
     .catch(error => {
         btn.disabled = false;
-        btn.innerHTML = '🗑️ Delete Test';
+        btn.innerHTML = 'Delete Test';
         Toast.error('Delete Error', 'An error occurred while deleting the test');
         console.error('Error:', error);
     });
@@ -581,7 +614,7 @@ document.getElementById('zip-upload').addEventListener('change', function(e) {
 
 function uploadFiles(files, isZip) {
     const statusDiv = document.getElementById('upload-status');
-    statusDiv.innerHTML = '⏳ Processing submissions...';
+    statusDiv.innerHTML = 'Processing submissions...';
     statusDiv.style.color = '#fff';
 
     const formData = new FormData();
