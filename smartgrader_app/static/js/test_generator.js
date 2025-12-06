@@ -15,24 +15,35 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check if critical elements exist
     if (!questionsContainer) {
         console.error('Critical error: questions-container element not found');
-        Toast.error('Initialization Error', 'Failed to initialize test generator. Please refresh the page.');
+        if (typeof Toast !== 'undefined') {
+            Toast.error('Initialization Error', 'Failed to initialize test generator. Please refresh the page.');
+        }
         return;
     }
 
     // Helper functions for messages using Toast notifications
     function showError(message) {
-        Toast.error('Error', message);
+        if (typeof Toast !== 'undefined') {
+            Toast.error('Error', message);
+        } else {
+            console.error('Error:', message);
+        }
     }
 
     function showSuccess(message) {
-        Toast.success('Success', message);
+        if (typeof Toast !== 'undefined') {
+            Toast.success('Success', message);
+        } else {
+            console.log('Success:', message);
+        }
     }
 
     // Add first question by default
     addQuestion();
 
     // File upload handler
-    fileUpload.addEventListener('change', function(e) {
+    if (fileUpload) {
+        fileUpload.addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
 
@@ -89,40 +100,53 @@ document.addEventListener('DOMContentLoaded', function() {
         reader.readAsText(file);
         // Reset file input
         e.target.value = '';
-    });
+        });
+    }
 
     // Randomization toggle
-    enableRandomization.addEventListener('change', function() {
-        randomizationSettings.style.display = this.checked ? 'block' : 'none';
-    });
+    if (enableRandomization) {
+        enableRandomization.addEventListener('change', function() {
+            randomizationSettings.style.display = this.checked ? 'block' : 'none';
+        });
+    }
 
     // Add question button click
-    addQuestionBtn.addEventListener('click', function() {
-        addQuestion();
-    });
+    if (addQuestionBtn) {
+        addQuestionBtn.addEventListener('click', function() {
+            addQuestion();
+        });
+    }
 
     // Form submission
-    testForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        saveTest(false);
-    });
+    if (testForm) {
+        testForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveTest(false);
+        });
+    }
 
     // Save and generate PDF button
-    saveAndGenerateBtn.addEventListener('click', function() {
-        saveTest(true);
-    });
+    if (saveAndGenerateBtn) {
+        saveAndGenerateBtn.addEventListener('click', function() {
+            saveTest(true);
+        });
+    }
 
     // Cancel button
-    cancelBtn.addEventListener('click', function() {
-        if (confirm('Are you sure you want to cancel? All unsaved changes will be lost.')) {
-            window.location.href = '/';
-        }
-    });
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to cancel? All unsaved changes will be lost.')) {
+                window.location.href = '/';
+            }
+        });
+    }
 
     // Update options when number of options changes
-    numOptionsSelect.addEventListener('change', function() {
-        updateAllQuestionOptions();
-    });
+    if (numOptionsSelect) {
+        numOptionsSelect.addEventListener('change', function() {
+            updateAllQuestionOptions();
+        });
+    }
 
     function parseJSONFile(content) {
         const data = JSON.parse(content);
