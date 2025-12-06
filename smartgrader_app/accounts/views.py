@@ -5,7 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
-from .models import Test, Submission
+from .models import Test, Submission, TestEnrollment, Profile
 import json
 import os
 import sys
@@ -730,3 +730,145 @@ def export_results_csv(request, test_id):
         
     except Test.DoesNotExist:
         return HttpResponse("Test not found", status=404)
+
+
+# ============================================
+# STUDENT PORTAL VIEWS
+# ============================================
+
+@login_required
+def student_dashboard(request):
+    """Student dashboard showing enrolled tests and results"""
+    try:
+        profile = Profile.objects.get(user=request.user)
+        
+        # Redirect teachers to teacher portal
+        if profile.role == 'teacher':
+            return redirect('test-list')
+    except Profile.DoesNotExist:
+        # Create profile if it doesn't exist (default is student)
+        profile = Profile.objects.create(user=request.user, role='student')
+    
+    # Get enrolled tests with their submissions
+    enrollments = TestEnrollment.objects.filter(student=request.user).select_related('test')
+    
+    tests_data = []
+    for enrollment in enrollments:
+        test = enrollment.test
+        # Get student's submission for this test
+        submission = Submission.objects.filter(
+            test=test,
+            student_user=request.user
+        ).first()
+        
+        tests_data.append({
+            'test': test,
+            'enrollment': enrollment,
+            'submission': submission,
+            'has_result': submission is not None and submission.processed
+        })
+    
+    context = {
+        'tests_data': tests_data,
+        'student': request.user
+    }
+    
+    return render(request, 'accounts/student_dashboard.html', context)
+
+
+@csrf_exempt
+@login_required
+def enroll_in_test(request):
+    """Enroll a student in a test using enrollment code"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST allowed'}, status=400)
+    
+    try:
+        data = json.loads(request.body)
+        enrollment_code = data.get('enrollment_code', '').strip().upper()
+        
+        if not enrollment_code:
+            return JsonResponse({'error': 'Enrollment code is required'}, status=400)
+        
+        # Find test by enrollment code
+        try:
+            test = Test.objects.get(enrollment_code=enrollment_code)
+        except Test.DoesNotExist:
+            return JsonResponse({'error': 'Invalid enrollment code'}, status=404)
+        
+        # Check if already enrolled
+        if TestEnrollment.objects.filter(student=request.user, test=test).exists():
+            return JsonResponse({'error': 'You are already enrolled in this test'}, status=400)
+        
+        # Create enrollment
+        enrollment = TestEnrollment.objects.create(student=request.user, test=test)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully enrolled in "{test.title}"',
+            'test_id': test.id,
+            'test_title': test.title
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def student_test_result(request, test_id):
+    """View detailed results for a specific test"""
+    try:
+        test = Test.objects.get(id=test_id)
+        
+        # Check if student is enrolled
+        if not TestEnrollment.objects.filter(student=request.user, test=test).exists():
+            return render(request, 'accounts/error.html', {
+                'error': 'You are not enrolled in this test'
+            }, status=403)
+        
+        # Get student's submission
+        submission = Submission.objects.filter(
+            test=test,
+            student_user=request.user
+        ).first()
+        
+        if not submission:
+            return render(request, 'accounts/error.html', {
+                'error': 'No results available yet. Your answer sheet may not have been uploaded.'
+            }, status=404)
+        
+        if not submission.processed:
+            return render(request, 'accounts/error.html', {
+                'error': 'Your submission is still being processed. Please check back later.'
+            }, status=404)
+        
+        # Prepare answer details
+        answer_details = []
+        for i, question in enumerate(test.questions):
+            student_answer = submission.answers[i] if i < len(submission.answers) else None
+            correct_answer = question['correct_answer']
+            is_correct = student_answer == correct_answer
+            
+            answer_details.append({
+                'question_num': i + 1,
+                'question_text': question['question'],
+                'options': question['options'],
+                'student_answer': student_answer,
+                'correct_answer': correct_answer,
+                'is_correct': is_correct
+            })
+        
+        context = {
+            'test': test,
+            'submission': submission,
+            'answer_details': answer_details
+        }
+        
+        return render(request, 'accounts/student_result.html', context)
+        
+    except Test.DoesNotExist:
+        return render(request, 'accounts/error.html', {
+            'error': 'Test not found'
+        }, status=404)

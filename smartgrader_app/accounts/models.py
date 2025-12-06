@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.conf import settings
+import secrets
+import string
 
 
 class CustomUserManager(BaseUserManager):
@@ -59,16 +61,47 @@ class Test(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     num_questions = models.IntegerField()
     num_options = models.IntegerField(default=5)
+    enrollment_code = models.CharField(max_length=8, unique=True, blank=True, null=True)
 
     class Meta:
         ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        # Generate unique enrollment code if not exists
+        if not self.enrollment_code:
+            self.enrollment_code = self.generate_enrollment_code()
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def generate_enrollment_code():
+        """Generate a unique 8-character enrollment code"""
+        chars = string.ascii_uppercase + string.digits
+        while True:
+            code = ''.join(secrets.choice(chars) for _ in range(8))
+            if not Test.objects.filter(enrollment_code=code).exists():
+                return code
 
     def __str__(self):
         return f"{self.title} - {self.created_by.email}"
 
 
+class TestEnrollment(models.Model):
+    """Track which students are enrolled in which tests"""
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='enrollments')
+    test = models.ForeignKey(Test, on_delete=models.CASCADE, related_name='enrollments')
+    enrolled_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('student', 'test')
+        ordering = ['-enrolled_at']
+
+    def __str__(self):
+        return f"{self.student.email} enrolled in {self.test.title}"
+
+
 class Submission(models.Model):
     test = models.ForeignKey(Test, on_delete=models.CASCADE, related_name='submissions')
+    student_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name='submissions', blank=True, null=True)
     first_name = models.CharField(max_length=255, blank=True, null=True)
     last_name = models.CharField(max_length=255, blank=True, null=True)
     image = models.ImageField(upload_to='submissions/')
@@ -86,6 +119,8 @@ class Submission(models.Model):
     @property
     def full_name(self):
         """Return full name of student"""
+        if self.student_user:
+            return f"{self.student_user.first_name} {self.student_user.last_name}".strip() or self.student_user.email
         if self.first_name and self.last_name:
             return f"{self.first_name} {self.last_name}"
         elif self.first_name:
