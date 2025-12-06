@@ -25,4 +25,9 @@ urlpatterns = [
     path("tests/<int:test_id>/submissions/<int:submission_id>/update-name/", views.update_submission_name, name="update-submission-name"),
     path("tests/<int:test_id>/analytics/", views.test_analytics_api, name="test-analytics"),
     path("tests/<int:test_id>/export/", views.export_results_csv, name="export-results"),
+
+    # Student Portal
+    path("student/", views.student_dashboard, name="student-dashboard"),
+    path("student/enroll/", views.enroll_in_test, name="enroll-in-test"),
+    path("student/test/<int:test_id>/result/", views.student_test_result, name="student-test-result"),
 ]

@@ -493,6 +493,14 @@
                 <span class="meta-value">{{ test.created_by.email }}</span>
             </div>
         </div>
+        <div style="margin-top: 20px; padding: 15px; background: #2a2a2a; border-radius: 8px; border: 2px solid #667eea;">
+            <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                <span style="color: #667eea; font-weight: 600; font-size: 14px;">📝 Student Enrollment Code:</span>
+                <span id="enrollment-code" style="font-family: monospace; font-size: 20px; color: #69c8a0; font-weight: 700; letter-spacing: 2px;">{{ test.enrollment_code }}</span>
+                <button onclick="copyEnrollmentCode()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#5568d3'" onmouseout="this.style.background='#667eea'">Copy Code</button>
+                <span style="color: #999; font-size: 13px; font-style: italic;">Share this code with students to let them enroll</span>
+            </div>
+        </div>
     </div>
 
     <div class="actions-section">
@@ -1076,6 +1084,16 @@ function saveTitleEdit() {
         inputs.forEach(el => el.disabled = false);
         Toast.error('Update Error', 'An error occurred while updating the title');
         console.error('Error:', error);
+    });
+}
+
+function copyEnrollmentCode() {
+    const code = document.getElementById('enrollment-code').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        Toast.success('Copied!', `Enrollment code "${code}" copied to clipboard`);
+    }).catch(err => {
+        Toast.error('Copy Failed', 'Could not copy enrollment code');
+        console.error('Copy error:', err);
     });
 }
 </script>
