@@ -258,9 +258,13 @@ def process_omr_image(image_path, num_questions=20, num_options=5):
         # Detect answers
         answers = detect_answers(img_threshold, num_questions, num_options)
 
+        # Extract student name information using OCR
+        student_info = extract_student_info(img_gray)
+
         return {
             'success': True,
             'answers': answers,
+            'student_info': student_info,
             'error': None
         }
 
