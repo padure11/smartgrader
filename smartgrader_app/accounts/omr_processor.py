@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import sys
 import os
+import re
 import traceback
 
 # Add grade_processor to path
@@ -84,103 +85,141 @@ def extract_student_info(img, debug_path=None):
         return {'first_name': None, 'last_name': None, 'debug_text': 'Tesseract not installed'}
 
     try:
-        # Extract top portion of image (first 20% contains name/surname fields)
+        # Extract top portion of image (first 25% contains name/surname fields)
         height, width = img.shape
-        name_region = img[0:int(height * 0.20), :]
+        name_region = img[0:int(height * 0.25), :]
+
+        print(f"\n=== OCR Name Extraction ===")
+        print(f"Image region size: {name_region.shape}")
 
         # Save original region for debugging
         if debug_path:
             cv2.imwrite(f"{debug_path}_1_original_region.png", name_region)
 
-        # Enhanced preprocessing pipeline
-        # 1. Increase contrast
-        name_region = cv2.equalizeHist(name_region)
+        # Try multiple preprocessing approaches for better OCR
+        preprocessed_images = []
 
-        # 2. Apply bilateral filter to reduce noise while keeping edges
-        name_region = cv2.bilateralFilter(name_region, 9, 75, 75)
+        # Approach 1: Simple threshold
+        _, thresh1 = cv2.threshold(name_region, 127, 255, cv2.THRESH_BINARY)
+        preprocessed_images.append(('simple_binary', thresh1))
 
-        # 3. Apply adaptive thresholding
-        name_region = cv2.adaptiveThreshold(
+        # Approach 2: Inverted threshold (for dark text on light background)
+        _, thresh2 = cv2.threshold(name_region, 127, 255, cv2.THRESH_BINARY_INV)
+        preprocessed_images.append(('inverted_binary', thresh2))
+
+        # Approach 3: Adaptive threshold
+        adaptive = cv2.adaptiveThreshold(
             name_region, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY, 15, 10
+            cv2.THRESH_BINARY_INV, 11, 2
         )
+        preprocessed_images.append(('adaptive', adaptive))
 
-        # 4. Morphological operations to clean up
-        kernel = np.ones((2,2), np.uint8)
-        name_region = cv2.morphologyEx(name_region, cv2.MORPH_CLOSE, kernel)
+        # Approach 4: Enhanced preprocessing
+        enhanced = cv2.equalizeHist(name_region)
+        enhanced = cv2.bilateralFilter(enhanced, 5, 50, 50)
+        _, enhanced = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        preprocessed_images.append(('enhanced', enhanced))
 
-        # Save preprocessed region for debugging
-        if debug_path:
-            cv2.imwrite(f"{debug_path}_2_preprocessed.png", name_region)
+        # Try OCR on each preprocessed version
+        best_result = {'first_name': None, 'last_name': None}
+        all_texts = []
 
-        # Extract text using OCR with improved config
-        custom_config = r'--oem 3 --psm 6'
-        text = pytesseract.image_to_string(name_region, config=custom_config)
+        for method_name, processed_img in preprocessed_images:
+            if debug_path:
+                cv2.imwrite(f"{debug_path}_2_{method_name}.png", processed_img)
 
-        # Debug: log extracted text
-        debug_text = f"Extracted text:\n{text}"
-        print(debug_text)
+            # Try multiple PSM modes
+            for psm in [6, 11, 13]:
+                try:
+                    config = f'--oem 3 --psm {psm}'
+                    text = pytesseract.image_to_string(processed_img, config=config)
+                    all_texts.append(f"\n--- {method_name} (PSM {psm}) ---\n{text}")
 
-        # Parse name and surname from text
-        lines = text.strip().split('\n')
-        first_name = None
-        last_name = None
+                    # Parse the extracted text
+                    result = parse_name_from_text(text)
 
-        for i, line in enumerate(lines):
-            line = line.strip()
-            print(f"Line {i}: {line}")
+                    # Keep the best result (one with both names if possible)
+                    if result['first_name'] and result['last_name']:
+                        print(f"✓ Found both names using {method_name} PSM {psm}")
+                        best_result = result
+                        break
+                    elif result['first_name'] or result['last_name']:
+                        if not best_result['first_name'] and result['first_name']:
+                            best_result['first_name'] = result['first_name']
+                        if not best_result['last_name'] and result['last_name']:
+                            best_result['last_name'] = result['last_name']
+                except Exception as e:
+                    print(f"Error with {method_name} PSM {psm}: {e}")
+                    continue
 
-            # More flexible name matching
-            # Look for "Name" field (case insensitive, handles typos)
-            if re.search(r'n[ao]me', line, re.IGNORECASE) and not re.search(r'surname|last', line, re.IGNORECASE):
-                # Try to extract name from same line
-                name_match = re.search(r'n[ao]me[:\s_\-]*([A-Za-z]{2,})', line, re.IGNORECASE)
-                if name_match:
-                    first_name = name_match.group(1).strip()
-                    print(f"Found name on same line: {first_name}")
-                # If not on same line, check next line
-                elif i + 1 < len(lines):
-                    next_line = lines[i + 1].strip()
-                    # Remove underscores, dashes, and extract text
-                    next_line = re.sub(r'[_\-]+', ' ', next_line)
-                    # Get words that are at least 2 characters and alphabetic
-                    words = [w for w in next_line.split() if len(w) >= 2 and w.isalpha()]
-                    if words:
-                        first_name = words[0]
-                        print(f"Found name on next line: {first_name}")
+            # If we found both names, no need to try more methods
+            if best_result['first_name'] and best_result['last_name']:
+                break
 
-            # Look for "Surname" field
-            if re.search(r'surname|last\s*name', line, re.IGNORECASE):
-                # Try to extract surname from same line
-                surname_match = re.search(r'surname[:\s_\-]*([A-Za-z]{2,})', line, re.IGNORECASE)
-                if surname_match:
-                    last_name = surname_match.group(1).strip()
-                    print(f"Found surname on same line: {last_name}")
-                # If not on same line, check next line
-                elif i + 1 < len(lines):
-                    next_line = lines[i + 1].strip()
-                    # Remove underscores, dashes, and extract text
-                    next_line = re.sub(r'[_\-]+', ' ', next_line)
-                    # Get words that are at least 2 characters and alphabetic
-                    words = [w for w in next_line.split() if len(w) >= 2 and w.isalpha()]
-                    if words:
-                        last_name = words[0]
-                        print(f"Found surname on next line: {last_name}")
-
-        print(f"Final result - First: {first_name}, Last: {last_name}")
+        debug_text = "\n".join(all_texts)
+        print(f"\nFinal result - First: {best_result['first_name']}, Last: {best_result['last_name']}")
 
         return {
-            'first_name': first_name,
-            'last_name': last_name,
-            'debug_text': text
+            'first_name': best_result['first_name'],
+            'last_name': best_result['last_name'],
+            'debug_text': debug_text
         }
 
     except Exception as e:
         error_msg = f"Error extracting student info: {e}"
         print(error_msg)
-        import traceback
         traceback.print_exc()
         return {'first_name': None, 'last_name': None, 'debug_text': error_msg}
+
+
+def parse_name_from_text(text):
+    """Parse first and last name from OCR text"""
+    lines = text.strip().split('\n')
+    first_name = None
+    last_name = None
+
+    print(f"\nParsing text ({len(lines)} lines):")
+
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if not line:
+            continue
+
+        print(f"  Line {i}: '{line}'")
+
+        # Look for "Name:" label and value
+        if re.search(r'\bname\b', line, re.IGNORECASE) and not re.search(r'surname|last', line, re.IGNORECASE):
+            # Try to extract from same line (e.g., "Name: John" or "Name:John")
+            match = re.search(r'\bname\s*:?\s*([A-Za-z]+)', line, re.IGNORECASE)
+            if match:
+                first_name = match.group(1).strip()
+                print(f"    → Found first name on same line: {first_name}")
+            # Otherwise check next line
+            elif i + 1 < len(lines):
+                next_line = lines[i + 1].strip()
+                # Extract alphabetic words
+                words = re.findall(r'[A-Za-z]{2,}', next_line)
+                if words:
+                    first_name = words[0]
+                    print(f"    → Found first name on next line: {first_name}")
+
+        # Look for "Surname:" label and value
+        if re.search(r'\bsurname\b|\blast\s*name\b', line, re.IGNORECASE):
+            # Try to extract from same line
+            match = re.search(r'\b(?:surname|last\s*name)\s*:?\s*([A-Za-z]+)', line, re.IGNORECASE)
+            if match:
+                last_name = match.group(1).strip()
+                print(f"    → Found last name on same line: {last_name}")
+            # Otherwise check next line
+            elif i + 1 < len(lines):
+                next_line = lines[i + 1].strip()
+                # Extract alphabetic words
+                words = re.findall(r'[A-Za-z]{2,}', next_line)
+                if words:
+                    last_name = words[0]
+                    print(f"    → Found last name on next line: {last_name}")
+
+    return {'first_name': first_name, 'last_name': last_name}
 
 
 def detect_answers(img, num_questions=20, num_options=5):
