@@ -95,19 +95,19 @@ def generate_test_pdf(json_file, output_pdf):
     # Name field
     c.drawString(margin, y_position, "Name:")
     name_box_x = margin + 2.5 * cm
-    name_box_y = y_position - 0.3 * cm
+    name_box_y = y_position - 0.4 * cm
     name_box_width = 7 * cm  # Reduced to avoid QR code overlap
-    name_box_height = 0.8 * cm
+    name_box_height = 1.2 * cm  # Increased height for better handwriting space
     c.rect(name_box_x, name_box_y, name_box_width, name_box_height)
 
-    y_position -= 1.5 * cm
+    y_position -= 1.8 * cm
 
     # Surname field
     c.drawString(margin, y_position, "Surname:")
     surname_box_x = margin + 2.5 * cm
-    surname_box_y = y_position - 0.3 * cm
+    surname_box_y = y_position - 0.4 * cm
     surname_box_width = 7 * cm  # Reduced to avoid QR code overlap
-    surname_box_height = 0.8 * cm
+    surname_box_height = 1.2 * cm  # Increased height for better handwriting space
     c.rect(surname_box_x, surname_box_y, surname_box_width, surname_box_height)
 
     y_position -= 1.5 * cm
@@ -222,19 +222,19 @@ def generate_test_pdf_from_db(test_obj, output_pdf):
     # Name field
     c.drawString(margin, y_position, "Name:")
     name_box_x = margin + 2.5 * cm
-    name_box_y = y_position - 0.3 * cm
+    name_box_y = y_position - 0.4 * cm
     name_box_width = 7 * cm  # Reduced to avoid QR code overlap
-    name_box_height = 0.8 * cm
+    name_box_height = 1.2 * cm  # Increased height for better handwriting space
     c.rect(name_box_x, name_box_y, name_box_width, name_box_height)
 
-    y_position -= 1.5 * cm
+    y_position -= 1.8 * cm
 
     # Surname field
     c.drawString(margin, y_position, "Surname:")
     surname_box_x = margin + 2.5 * cm
-    surname_box_y = y_position - 0.3 * cm
+    surname_box_y = y_position - 0.4 * cm
     surname_box_width = 7 * cm  # Reduced to avoid QR code overlap
-    surname_box_height = 0.8 * cm
+    surname_box_height = 1.2 * cm  # Increased height for better handwriting space
     c.rect(surname_box_x, surname_box_y, surname_box_width, surname_box_height)
 
     y_position -= 1.5 * cm
