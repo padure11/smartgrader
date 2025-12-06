@@ -12,19 +12,109 @@
     }
 
     .submission-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 40px;
-        border-radius: 15px;
+        background: #2a2a2a;
+        border: 1px solid #3a3a3a;
+        padding: 35px 40px;
+        border-radius: 8px;
         color: white;
         margin-bottom: 30px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .submission-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
     }
 
     .student-info h1 {
         font-size: 32px;
+        font-weight: 700;
         margin-bottom: 10px;
+        letter-spacing: -0.5px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .student-info p {
+        color: #aaa;
+        font-size: 14px;
+        margin: 5px 0;
+    }
+
+    .edit-name-btn {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .edit-name-btn:hover {
+        background: #5568d3;
+        transform: translateY(-1px);
+    }
+
+    .name-edit-form {
+        display: none;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .name-edit-form input {
+        padding: 8px 12px;
+        border: 1px solid #444;
+        border-radius: 6px;
+        background: #1c1c1c;
+        color: #fff;
+        font-size: 14px;
+        min-width: 150px;
+    }
+
+    .name-edit-form input:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .name-edit-form button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .name-edit-form .save-btn {
+        background: #69c8a0;
+        color: #000;
+    }
+
+    .name-edit-form .save-btn:hover {
+        background: #58b38e;
+    }
+
+    .name-edit-form .cancel-btn {
+        background: #444;
+        color: #fff;
+    }
+
+    .name-edit-form .cancel-btn:hover {
+        background: #555;
     }
 
     .score-badge {
@@ -64,15 +154,19 @@
 
     .scanned-image-section {
         background: #2a2a2a;
-        padding: 30px;
-        border-radius: 15px;
-        margin-bottom: 30px;
+        border: 1px solid #3a3a3a;
+        padding: 28px 32px;
+        border-radius: 8px;
+        margin-bottom: 24px;
         text-align: center;
     }
 
     .scanned-image-section h2 {
         color: #fff;
+        font-size: 20px;
+        font-weight: 600;
         margin-bottom: 20px;
+        letter-spacing: -0.3px;
     }
 
     .scanned-image {
@@ -84,14 +178,18 @@
 
     .answers-section {
         background: #2a2a2a;
-        padding: 30px;
-        border-radius: 15px;
-        margin-bottom: 30px;
+        border: 1px solid #3a3a3a;
+        padding: 28px 32px;
+        border-radius: 8px;
+        margin-bottom: 24px;
     }
 
     .answers-section h2 {
         color: #fff;
+        font-size: 20px;
+        font-weight: 600;
         margin-bottom: 25px;
+        letter-spacing: -0.3px;
     }
 
     .answer-card {
@@ -247,7 +345,16 @@
 
     <div class="submission-header">
         <div class="student-info">
-            <h1>{{ submission.full_name }}</h1>
+            <h1>
+                <span id="student-name-display">{{ submission.full_name }}</span>
+                <button onclick="showEditForm()" class="edit-name-btn" id="edit-name-btn">Edit Name</button>
+            </h1>
+            <div class="name-edit-form" id="name-edit-form">
+                <input type="text" id="first-name-input" placeholder="First Name" value="{{ submission.first_name|default:'' }}">
+                <input type="text" id="last-name-input" placeholder="Last Name" value="{{ submission.last_name|default:'' }}">
+                <button onclick="saveNameEdit()" class="save-btn">Save</button>
+                <button onclick="cancelEdit()" class="cancel-btn">Cancel</button>
+            </div>
             <p>Submitted: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
             <p>Test: {{ test.title }}</p>
         </div>
@@ -259,19 +366,19 @@
 
     {% if submission.image %}
     <div class="scanned-image-section">
-        <h2>📄 Scanned Answer Sheet</h2>
+        <h2>Scanned Answer Sheet</h2>
         <img src="{{ submission.image.url }}" alt="Scanned test" class="scanned-image">
     </div>
     {% endif %}
 
     <div class="answers-section">
-        <h2>📝 Answer Breakdown</h2>
+        <h2>Answer Breakdown</h2>
         {% for detail in answer_details %}
         <div class="answer-card {% if detail.is_correct %}correct{% else %}incorrect{% endif %}">
             <div class="question-header">
                 <span class="question-num">Question {{ detail.question_num }}</span>
                 <span class="status-badge {% if detail.is_correct %}correct{% else %}incorrect{% endif %}">
-                    {% if detail.is_correct %}✓ Correct{% else %}✗ Incorrect{% endif %}
+                    {% if detail.is_correct %}Correct{% else %}Incorrect{% endif %}
                 </span>
             </div>
 
@@ -304,4 +411,66 @@
         {% endfor %}
     </div>
 </div>
+
+<script>
+function showEditForm() {
+    document.getElementById('name-edit-form').style.display = 'flex';
+    document.getElementById('edit-name-btn').style.display = 'none';
+    document.getElementById('first-name-input').focus();
+}
+
+function cancelEdit() {
+    document.getElementById('name-edit-form').style.display = 'none';
+    document.getElementById('edit-name-btn').style.display = 'inline-block';
+}
+
+function saveNameEdit() {
+    const firstName = document.getElementById('first-name-input').value.trim();
+    const lastName = document.getElementById('last-name-input').value.trim();
+
+    if (!firstName || !lastName) {
+        Toast.error('Validation Error', 'Both first name and last name are required');
+        return;
+    }
+
+    // Disable inputs during save
+    const inputs = document.querySelectorAll('#name-edit-form input, #name-edit-form button');
+    inputs.forEach(el => el.disabled = true);
+
+    fetch('/tests/{{ test.id }}/submissions/{{ submission.id }}/update-name/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            first_name: firstName,
+            last_name: lastName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        inputs.forEach(el => el.disabled = false);
+
+        if (data.error) {
+            Toast.error('Update Failed', data.error);
+        } else {
+            // Update the display name
+            document.getElementById('student-name-display').textContent = data.full_name;
+
+            // Also update the page title
+            document.title = data.full_name + ' - {{ test.title }}';
+
+            // Hide the form
+            cancelEdit();
+
+            Toast.success('Name Updated', 'Student name has been successfully updated');
+        }
+    })
+    .catch(error => {
+        inputs.forEach(el => el.disabled = false);
+        Toast.error('Update Error', 'An error occurred while updating the name');
+        console.error('Error:', error);
+    });
+}
+</script>
 {% endblock %}
