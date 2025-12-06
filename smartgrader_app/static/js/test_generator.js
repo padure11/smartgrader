@@ -12,6 +12,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const enableRandomization = document.getElementById('enable-randomization');
     const randomizationSettings = document.getElementById('randomization-settings');
 
+    // Check if critical elements exist
+    if (!questionsContainer) {
+        console.error('Critical error: questions-container element not found');
+        Toast.error('Initialization Error', 'Failed to initialize test generator. Please refresh the page.');
+        return;
+    }
+
     // Helper functions for messages using Toast notifications
     function showError(message) {
         Toast.error('Error', message);
@@ -207,6 +214,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function addQuestionFromData(questionData) {
+        if (!questionsContainer) {
+            console.error('Questions container not found');
+            showError('Failed to add question. Please refresh the page.');
+            return;
+        }
+
         // Validate question data
         if (!questionData || !questionData.question || !questionData.options || questionData.options.length === 0) {
             console.error('Invalid question data:', questionData);
@@ -267,7 +280,7 @@ document.addEventListener('DOMContentLoaded', function() {
                           required>${questionText}</textarea>
             </div>
             <div class="options-container">
-                <label style="margin-bottom: 10px; display: block;">Options & Correct Answer *</label>
+                <label style="margin-bottom: 10px; display: block; color: #ddd;">Options & Correct Answer *</label>
                 ${optionsHTML}
             </div>
         `;
@@ -276,6 +289,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function addQuestion() {
+        if (!questionsContainer) {
+            console.error('Questions container not found');
+            showError('Failed to add question. Please refresh the page.');
+            return;
+        }
+
         questionCount++;
         const numOptions = parseInt(numOptionsSelect.value);
 
@@ -319,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
                           required></textarea>
             </div>
             <div class="options-container">
-                <label style="margin-bottom: 10px; display: block;">Options & Correct Answer *</label>
+                <label style="margin-bottom: 10px; display: block; color: #ddd;">Options & Correct Answer *</label>
                 ${optionsHTML}
             </div>
         `;
@@ -350,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Rebuild options
-        let optionsHTML = '<label style="margin-bottom: 10px; display: block;">Options & Correct Answer *</label>';
+        let optionsHTML = '<label style="margin-bottom: 10px; display: block; color: #ddd;">Options & Correct Answer *</label>';
 
         for (let i = 0; i < numOptions; i++) {
             optionsHTML += `
