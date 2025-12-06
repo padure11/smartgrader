@@ -275,11 +275,17 @@ const allTests = [
         created_timestamp: new Date("{{ item.test.created_at.isoformat }}").getTime(),
         submission_count: {{ item.submission_count }},
         average_percentage: {{ item.average_percentage }},
-        latest_submission: {% if item.latest_submission %}"{{ item.latest_submission.full_name }}"{% else %}null{% endif %},
+        latest_submission: {% if item.latest_submission %}"{{ item.latest_submission.full_name|escapejs }}"{% else %}null{% endif %},
         latest_percentage: {% if item.latest_submission %}{{ item.latest_submission.percentage }}{% else %}0{% endif %}
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
 ];
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
 function displayTests(tests) {
     const grid = document.getElementById('test-grid');
@@ -290,39 +296,50 @@ function displayTests(tests) {
         return;
     }
 
-    grid.innerHTML = tests.map(item => `
-        <a href="/tests/${item.id}/" class="test-card-link">
-            <div class="test-card">
-                <h3>${item.title}</h3>
-                ${item.description ? `<p>${item.description.substring(0, 100)}${item.description.length > 100 ? '...' : ''}</p>` : ''}
+    grid.innerHTML = tests.map(item => {
+        let descriptionHtml = '';
+        if (item.description) {
+            const truncated = item.description.length > 100 ? item.description.substring(0, 100) + '...' : item.description;
+            descriptionHtml = '<p>' + escapeHtml(truncated) + '</p>';
+        }
 
-                <div class="stats-box">
-                    ${item.submission_count > 0 ? `
-                        <div class="stats-row">
-                            <span class="stat-label">Submissions</span>
-                            <span class="stat-value">${item.submission_count}</span>
-                        </div>
-                        <div class="stats-row">
-                            <span class="stat-label">Class Average</span>
-                            <span class="stat-value">${item.average_percentage}%</span>
-                        </div>
-                        ${item.latest_submission ? `
-                            <div class="stat-secondary">
-                                Latest: ${item.latest_submission} (${item.latest_percentage}%)
-                            </div>
-                        ` : ''}
-                    ` : `
-                        <div class="no-stats">No submissions yet</div>
-                    `}
+        let statsHtml = '';
+        if (item.submission_count > 0) {
+            let latestHtml = '';
+            if (item.latest_submission) {
+                latestHtml = '<div class="stat-secondary">Latest: ' + escapeHtml(item.latest_submission) + ' (' + item.latest_percentage + '%)</div>';
+            }
+            statsHtml = `
+                <div class="stats-row">
+                    <span class="stat-label">Submissions</span>
+                    <span class="stat-value">${item.submission_count}</span>
                 </div>
+                <div class="stats-row">
+                    <span class="stat-label">Class Average</span>
+                    <span class="stat-value">${item.average_percentage}%</span>
+                </div>
+                ${latestHtml}
+            `;
+        } else {
+            statsHtml = '<div class="no-stats">No submissions yet</div>';
+        }
 
-                <div class="test-meta">
-                    <span class="test-meta-item">${item.num_questions} questions</span>
-                    <span class="test-meta-item">${item.created_at}</span>
+        return `
+            <a href="/tests/${item.id}/" class="test-card-link">
+                <div class="test-card">
+                    <h3>${escapeHtml(item.title)}</h3>
+                    ${descriptionHtml}
+                    <div class="stats-box">
+                        ${statsHtml}
+                    </div>
+                    <div class="test-meta">
+                        <span class="test-meta-item">${item.num_questions} questions</span>
+                        <span class="test-meta-item">${escapeHtml(item.created_at)}</span>
+                    </div>
                 </div>
-            </div>
-        </a>
-    `).join('');
+            </a>
+        `;
+    }).join('');
 }
 
 function filterAndSortTests() {
