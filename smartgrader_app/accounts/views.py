@@ -197,9 +197,28 @@ def create_test(request):
 
 @login_required
 def test_list_page(request):
-    """Render the test list page - show only user's tests"""
+    """Render the test list page - show only user's tests with stats"""
     tests = Test.objects.filter(created_by=request.user).order_by('-created_at')
-    return render(request, 'accounts/test_list.html', {'tests': tests})
+
+    # Add statistics for each test
+    tests_with_stats = []
+    for test in tests:
+        submissions = test.submissions.filter(processed=True)
+        stats = {
+            'test': test,
+            'submission_count': submissions.count(),
+            'average_percentage': 0,
+            'latest_submission': None
+        }
+
+        if submissions.exists():
+            percentages = [sub.percentage for sub in submissions]
+            stats['average_percentage'] = round(sum(percentages) / len(percentages), 1)
+            stats['latest_submission'] = submissions.order_by('-submitted_at').first()
+
+        tests_with_stats.append(stats)
+
+    return render(request, 'accounts/test_list.html', {'tests_with_stats': tests_with_stats})
 
 
 @login_required

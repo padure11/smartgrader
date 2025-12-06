@@ -118,18 +118,38 @@
         <a href="{% url 'test-generator' %}" class="create-test-btn">+ Create New Test</a>
     </div>
 
-    {% if tests %}
+    {% if tests_with_stats %}
         <div class="test-grid">
-            {% for test in tests %}
-                <a href="{% url 'test-detail' test.id %}" class="test-card-link">
+            {% for item in tests_with_stats %}
+                <a href="{% url 'test-detail' item.test.id %}" class="test-card-link">
                     <div class="test-card">
-                        <h3>{{ test.title }}</h3>
-                        {% if test.description %}
-                            <p>{{ test.description|truncatewords:20 }}</p>
+                        <h3>{{ item.test.title }}</h3>
+                        {% if item.test.description %}
+                            <p>{{ item.test.description|truncatewords:20 }}</p>
                         {% endif %}
+
+                        <!-- Quick Stats -->
+                        {% if item.submission_count > 0 %}
+                        <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin: 12px 0;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span style="color: rgba(255,255,255,0.9); font-size: 13px;">📊 {{ item.submission_count }} submission{{ item.submission_count|pluralize }}</span>
+                                <span style="color: #69c8a0; font-weight: 600; font-size: 14px;">Avg: {{ item.average_percentage }}%</span>
+                            </div>
+                            {% if item.latest_submission %}
+                            <div style="color: rgba(255,255,255,0.7); font-size: 12px;">
+                                Last: {{ item.latest_submission.full_name }} - {{ item.latest_submission.percentage }}%
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin: 12px 0;">
+                            <span style="color: rgba(255,255,255,0.7); font-size: 13px;">📝 No submissions yet</span>
+                        </div>
+                        {% endif %}
+
                         <div class="test-meta">
-                            <span class="test-meta-item">{{ test.num_questions }} questions</span>
-                            <span class="test-meta-item">{{ test.created_at|date:"M d, Y" }}</span>
+                            <span class="test-meta-item">{{ item.test.num_questions }} questions</span>
+                            <span class="test-meta-item">{{ item.test.created_at|date:"M d, Y" }}</span>
                         </div>
                     </div>
                 </a>

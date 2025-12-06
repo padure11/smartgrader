@@ -435,6 +435,28 @@
 
     <div class="actions-section" id="submissions-section">
         <h2>📊 Graded Submissions</h2>
+
+        <!-- Search and Sort Controls -->
+        <div class="submissions-controls" style="margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 250px;">
+                <input type="text"
+                       id="search-submissions"
+                       placeholder="🔍 Search by name..."
+                       style="width: 100%; padding: 10px 15px; border: 1px solid #555; background: #2a2a2a; color: #fff; border-radius: 8px; font-size: 14px;">
+            </div>
+            <div>
+                <select id="sort-submissions"
+                        style="padding: 10px 15px; border: 1px solid #555; background: #2a2a2a; color: #fff; border-radius: 8px; font-size: 14px; cursor: pointer;">
+                    <option value="percentage-desc">📊 Highest Score First</option>
+                    <option value="percentage-asc">📉 Lowest Score First</option>
+                    <option value="name-asc">🔤 Name (A-Z)</option>
+                    <option value="name-desc">🔤 Name (Z-A)</option>
+                    <option value="date-desc">📅 Newest First</option>
+                    <option value="date-asc">📅 Oldest First</option>
+                </select>
+            </div>
+        </div>
+
         <div id="submissions-list">
             <p style="color: #ccc;">Loading submissions...</p>
         </div>
@@ -617,6 +639,9 @@ function uploadFiles(files, isZip) {
     });
 }
 
+// Global submissions data
+let allSubmissions = [];
+
 function loadSubmissions() {
     const submissionsDiv = document.getElementById('submissions-list');
 
@@ -624,28 +649,8 @@ function loadSubmissions() {
     .then(response => response.json())
     .then(data => {
         if (data.submissions && data.submissions.length > 0) {
-            let html = '';
-            data.submissions.forEach(sub => {
-                let scoreClass = 'poor';
-                if (sub.percentage >= 80) scoreClass = 'excellent';
-                else if (sub.percentage >= 60) scoreClass = 'good';
-
-                html += `
-                    <a href="/tests/{{ test.id }}/submissions/${sub.id}/" class="submission-card">
-                        <div class="submission-info">
-                            <div class="submission-name">${sub.student_name}</div>
-                            <div class="submission-meta">
-                                Submitted: ${sub.submitted_at}
-                            </div>
-                        </div>
-                        <div class="submission-score ${scoreClass}">
-                            ${sub.score}/${sub.total}<br>
-                            <span style="font-size: 14px;">${sub.percentage}%</span>
-                        </div>
-                    </a>
-                `;
-            });
-            submissionsDiv.innerHTML = html;
+            allSubmissions = data.submissions;
+            displaySubmissions(allSubmissions);
         } else {
             submissionsDiv.innerHTML = '<p style="color: #aaa;">No submissions yet. Upload student answer sheets to grade them automatically.</p>';
         }
@@ -655,6 +660,84 @@ function loadSubmissions() {
         console.error('Error:', error);
     });
 }
+
+function displaySubmissions(submissions) {
+    const submissionsDiv = document.getElementById('submissions-list');
+
+    if (submissions.length === 0) {
+        submissionsDiv.innerHTML = '<p style="color: #aaa;">No submissions match your search.</p>';
+        return;
+    }
+
+    let html = '';
+    submissions.forEach(sub => {
+        let scoreClass = 'poor';
+        if (sub.percentage >= 80) scoreClass = 'excellent';
+        else if (sub.percentage >= 60) scoreClass = 'good';
+
+        html += `
+            <a href="/tests/{{ test.id }}/submissions/${sub.id}/" class="submission-card" data-name="${sub.student_name}">
+                <div class="submission-info">
+                    <div class="submission-name">${sub.student_name}</div>
+                    <div class="submission-meta">
+                        Submitted: ${sub.submitted_at}
+                    </div>
+                </div>
+                <div class="submission-score ${scoreClass}">
+                    ${sub.score}/${sub.total}<br>
+                    <span style="font-size: 12px;">${sub.percentage}%</span>
+                </div>
+            </a>
+        `;
+    });
+    submissionsDiv.innerHTML = html;
+}
+
+function filterAndSortSubmissions() {
+    const searchTerm = document.getElementById('search-submissions').value.toLowerCase();
+    const sortOption = document.getElementById('sort-submissions').value;
+
+    // Filter
+    let filtered = allSubmissions.filter(sub =>
+        sub.student_name.toLowerCase().includes(searchTerm)
+    );
+
+    // Sort
+    filtered.sort((a, b) => {
+        switch(sortOption) {
+            case 'percentage-desc':
+                return b.percentage - a.percentage;
+            case 'percentage-asc':
+                return a.percentage - b.percentage;
+            case 'name-asc':
+                return a.student_name.localeCompare(b.student_name);
+            case 'name-desc':
+                return b.student_name.localeCompare(a.student_name);
+            case 'date-desc':
+                return new Date(b.submitted_at) - new Date(a.submitted_at);
+            case 'date-asc':
+                return new Date(a.submitted_at) - new Date(b.submitted_at);
+            default:
+                return 0;
+        }
+    });
+
+    displaySubmissions(filtered);
+}
+
+// Add event listeners for search and sort
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search-submissions');
+    const sortSelect = document.getElementById('sort-submissions');
+
+    if (searchInput) {
+        searchInput.addEventListener('input', filterAndSortSubmissions);
+    }
+
+    if (sortSelect) {
+        sortSelect.addEventListener('change', filterAndSortSubmissions);
+    }
+});
 
 // Load submissions on page load
 loadSubmissions();
@@ -709,6 +792,37 @@ function showAnalytics() {
                     <div class="stat-card">
                         <div class="stat-value" style="color: #ff4444;">${data.score_distribution.needs_improvement}</div>
                         <div class="stat-label">Needs Improvement (<60%)</div>
+                    </div>
+                </div>
+
+                <h3 style="color: #fff; margin-bottom: 15px; margin-top: 20px;">Grade Distribution</h3>
+                <div style="background: #3a3a3a; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
+                    <div class="grade-bar" style="margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span style="color: #69c8a0; font-weight: 600;">A (90-100%)</span>
+                            <span style="color: #aaa;">${data.score_distribution.excellent > 0 ? Math.round((data.score_distribution.excellent / data.total_submissions) * 100) : 0}%</span>
+                        </div>
+                        <div style="width: 100%; height: 24px; background: #2a2a2a; border-radius: 6px; overflow: hidden;">
+                            <div style="width: ${data.score_distribution.excellent > 0 ? (data.score_distribution.excellent / data.total_submissions * 100) : 0}%; height: 100%; background: linear-gradient(90deg, #69c8a0, #58b38e); transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                    <div class="grade-bar" style="margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span style="color: #667eea; font-weight: 600;">B/C (60-89%)</span>
+                            <span style="color: #aaa;">${data.score_distribution.good > 0 ? Math.round((data.score_distribution.good / data.total_submissions) * 100) : 0}%</span>
+                        </div>
+                        <div style="width: 100%; height: 24px; background: #2a2a2a; border-radius: 6px; overflow: hidden;">
+                            <div style="width: ${data.score_distribution.good > 0 ? (data.score_distribution.good / data.total_submissions * 100) : 0}%; height: 100%; background: linear-gradient(90deg, #667eea, #5568d3); transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                    <div class="grade-bar">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span style="color: #ff4444; font-weight: 600;">D/F (<60%)</span>
+                            <span style="color: #aaa;">${data.score_distribution.needs_improvement > 0 ? Math.round((data.score_distribution.needs_improvement / data.total_submissions) * 100) : 0}%</span>
+                        </div>
+                        <div style="width: 100%; height: 24px; background: #2a2a2a; border-radius: 6px; overflow: hidden;">
+                            <div style="width: ${data.score_distribution.needs_improvement > 0 ? (data.score_distribution.needs_improvement / data.total_submissions * 100) : 0}%; height: 100%; background: linear-gradient(90deg, #ff4444, #cc0000); transition: width 0.3s;"></div>
+                        </div>
                     </div>
                 </div>
 
