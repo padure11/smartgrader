@@ -89,14 +89,14 @@ def generate_test_pdf(json_file, output_pdf):
 
     y_position -= 1.5 * cm
 
-    # Student name fields with boxes
+    # Student name fields with boxes (sized to not overlap QR code)
     c.setFont(font_bold, 11)
 
     # Name field
     c.drawString(margin, y_position, "Name:")
     name_box_x = margin + 2.5 * cm
     name_box_y = y_position - 0.3 * cm
-    name_box_width = 10 * cm
+    name_box_width = 7 * cm  # Reduced to avoid QR code overlap
     name_box_height = 0.8 * cm
     c.rect(name_box_x, name_box_y, name_box_width, name_box_height)
 
@@ -106,7 +106,7 @@ def generate_test_pdf(json_file, output_pdf):
     c.drawString(margin, y_position, "Surname:")
     surname_box_x = margin + 2.5 * cm
     surname_box_y = y_position - 0.3 * cm
-    surname_box_width = 10 * cm
+    surname_box_width = 7 * cm  # Reduced to avoid QR code overlap
     surname_box_height = 0.8 * cm
     c.rect(surname_box_x, surname_box_y, surname_box_width, surname_box_height)
 
@@ -216,14 +216,14 @@ def generate_test_pdf_from_db(test_obj, output_pdf):
 
     y_position -= 1.5 * cm
 
-    # Student name fields with boxes
+    # Student name fields with boxes (sized to not overlap QR code)
     c.setFont(font_bold, 11)
 
     # Name field
     c.drawString(margin, y_position, "Name:")
     name_box_x = margin + 2.5 * cm
     name_box_y = y_position - 0.3 * cm
-    name_box_width = 10 * cm
+    name_box_width = 7 * cm  # Reduced to avoid QR code overlap
     name_box_height = 0.8 * cm
     c.rect(name_box_x, name_box_y, name_box_width, name_box_height)
 
@@ -233,7 +233,7 @@ def generate_test_pdf_from_db(test_obj, output_pdf):
     c.drawString(margin, y_position, "Surname:")
     surname_box_x = margin + 2.5 * cm
     surname_box_y = y_position - 0.3 * cm
-    surname_box_width = 10 * cm
+    surname_box_width = 7 * cm  # Reduced to avoid QR code overlap
     surname_box_height = 0.8 * cm
     c.rect(surname_box_x, surname_box_y, surname_box_width, surname_box_height)
 
