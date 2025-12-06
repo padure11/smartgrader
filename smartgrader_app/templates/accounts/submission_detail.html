@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ submission.full_name }} - {{ test.title }}{% endblock %}
+
+{% block content %}
+<style>
+    .submission-container {
+        max-width: 1200px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+
+    .submission-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 40px;
+        border-radius: 15px;
+        color: white;
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .student-info h1 {
+        font-size: 32px;
+        margin-bottom: 10px;
+    }
+
+    .score-badge {
+        background: white;
+        color: #000;
+        padding: 30px;
+        border-radius: 15px;
+        text-align: center;
+        min-width: 200px;
+    }
+
+    .score-badge .score {
+        font-size: 48px;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
+    .score-badge .percentage {
+        font-size: 24px;
+        color: #666;
+    }
+
+    .score-badge.excellent {
+        background: linear-gradient(135deg, #69c8a0 0%, #58b38e 100%);
+        color: white;
+    }
+
+    .score-badge.good {
+        background: linear-gradient(135deg, #667eea 0%, #5568d3 100%);
+        color: white;
+    }
+
+    .score-badge.poor {
+        background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+        color: white;
+    }
+
+    .scanned-image-section {
+        background: #2a2a2a;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        text-align: center;
+    }
+
+    .scanned-image-section h2 {
+        color: #fff;
+        margin-bottom: 20px;
+    }
+
+    .scanned-image {
+        max-width: 100%;
+        max-height: 600px;
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .answers-section {
+        background: #2a2a2a;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+    }
+
+    .answers-section h2 {
+        color: #fff;
+        margin-bottom: 25px;
+    }
+
+    .answer-card {
+        background: #3a3a3a;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        border-left: 5px solid #666;
+    }
+
+    .answer-card.correct {
+        border-left-color: #69c8a0;
+        background: rgba(105, 200, 160, 0.1);
+    }
+
+    .answer-card.incorrect {
+        border-left-color: #ff4444;
+        background: rgba(255, 68, 68, 0.1);
+    }
+
+    .question-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .question-num {
+        color: #69c8a0;
+        font-weight: bold;
+        font-size: 16px;
+    }
+
+    .status-badge {
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .status-badge.correct {
+        background: #69c8a0;
+        color: #000;
+    }
+
+    .status-badge.incorrect {
+        background: #ff4444;
+        color: white;
+    }
+
+    .question-text {
+        color: #fff;
+        font-size: 16px;
+        margin-bottom: 15px;
+        line-height: 1.6;
+    }
+
+    .options-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+    }
+
+    .option {
+        padding: 10px 15px;
+        background: #4a4a4a;
+        border-radius: 8px;
+        color: #ddd;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .option.student-answer {
+        background: #667eea;
+        color: white;
+        font-weight: 600;
+    }
+
+    .option.correct-answer {
+        background: #69c8a0;
+        color: #000;
+        font-weight: 600;
+    }
+
+    .option.student-wrong {
+        background: #ff4444;
+        color: white;
+        font-weight: 600;
+    }
+
+    .option-label {
+        background: rgba(255,255,255,0.2);
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-weight: bold;
+        min-width: 30px;
+        text-align: center;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-back {
+        background: #4a4a4a;
+        color: white;
+    }
+
+    .btn-back:hover {
+        background: #5a5a5a;
+        transform: translateY(-2px);
+    }
+
+    @media (max-width: 768px) {
+        .submission-header {
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .score-badge {
+            width: 100%;
+        }
+
+        .options-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="submission-container">
+    <div class="action-buttons">
+        <a href="/tests/{{ test.id }}/" class="btn btn-back">← Back to Test</a>
+    </div>
+
+    <div class="submission-header">
+        <div class="student-info">
+            <h1>{{ submission.full_name }}</h1>
+            <p>Submitted: {{ submission.submitted_at|date:"F d, Y H:i" }}</p>
+            <p>Test: {{ test.title }}</p>
+        </div>
+        <div class="score-badge {% if submission.percentage >= 80 %}excellent{% elif submission.percentage >= 60 %}good{% else %}poor{% endif %}">
+            <div class="score">{{ submission.score }}/{{ submission.total_questions }}</div>
+            <div class="percentage">{{ submission.percentage }}%</div>
+        </div>
+    </div>
+
+    {% if submission.image %}
+    <div class="scanned-image-section">
+        <h2>📄 Scanned Answer Sheet</h2>
+        <img src="{{ submission.image.url }}" alt="Scanned test" class="scanned-image">
+    </div>
+    {% endif %}
+
+    <div class="answers-section">
+        <h2>📝 Answer Breakdown</h2>
+        {% for detail in answer_details %}
+        <div class="answer-card {% if detail.is_correct %}correct{% else %}incorrect{% endif %}">
+            <div class="question-header">
+                <span class="question-num">Question {{ detail.question_num }}</span>
+                <span class="status-badge {% if detail.is_correct %}correct{% else %}incorrect{% endif %}">
+                    {% if detail.is_correct %}✓ Correct{% else %}✗ Incorrect{% endif %}
+                </span>
+            </div>
+
+            <div class="question-text">{{ detail.question_text }}</div>
+
+            <div class="options-grid">
+                {% for option in detail.options %}
+                <div class="option
+                    {% if forloop.counter0 == detail.student_answer and forloop.counter0 == detail.correct_answer %}correct-answer
+                    {% elif forloop.counter0 == detail.student_answer %}student-wrong
+                    {% elif forloop.counter0 == detail.correct_answer %}correct-answer
+                    {% endif %}">
+                    <span class="option-label">
+                        {% if forloop.counter0 == 0 %}A{% endif %}
+                        {% if forloop.counter0 == 1 %}B{% endif %}
+                        {% if forloop.counter0 == 2 %}C{% endif %}
+                        {% if forloop.counter0 == 3 %}D{% endif %}
+                        {% if forloop.counter0 == 4 %}E{% endif %}
+                    </span>
+                    <span>{{ option }}</span>
+                    {% if forloop.counter0 == detail.student_answer and forloop.counter0 != detail.correct_answer %}
+                        <span style="margin-left: auto;">Your Answer</span>
+                    {% elif forloop.counter0 == detail.correct_answer %}
+                        <span style="margin-left: auto;">Correct Answer</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

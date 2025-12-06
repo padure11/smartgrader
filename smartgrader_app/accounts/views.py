@@ -440,3 +440,173 @@ def get_test_submissions(request, test_id):
         return JsonResponse({"error": "Test not found"}, status=404)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def submission_detail_page(request, test_id, submission_id):
+    """View detailed submission with answer breakdown"""
+    try:
+        test = Test.objects.get(id=test_id, created_by=request.user)
+        submission = Submission.objects.get(id=submission_id, test=test)
+        
+        # Build detailed answer breakdown
+        correct_answers = [q['correct_answer'] for q in test.questions]
+        answer_details = []
+        
+        for i, question in enumerate(test.questions):
+            student_answer = submission.answers[i] if i < len(submission.answers) else None
+            correct_answer = question['correct_answer']
+            is_correct = student_answer == correct_answer
+            
+            answer_details.append({
+                'question_num': i + 1,
+                'question_text': question['question'],
+                'options': question['options'],
+                'student_answer': student_answer,
+                'correct_answer': correct_answer,
+                'is_correct': is_correct
+            })
+        
+        context = {
+            'test': test,
+            'submission': submission,
+            'answer_details': answer_details
+        }
+        
+        return render(request, 'accounts/submission_detail.html', context)
+        
+    except (Test.DoesNotExist, Submission.DoesNotExist):
+        return render(request, 'accounts/test_not_found.html', status=404)
+
+
+@login_required
+def test_analytics_api(request, test_id):
+    """Get analytics for a test"""
+    try:
+        test = Test.objects.get(id=test_id, created_by=request.user)
+        submissions = test.submissions.filter(processed=True)
+        
+        if submissions.count() == 0:
+            return JsonResponse({
+                'count': 0,
+                'message': 'No submissions yet'
+            })
+        
+        # Calculate statistics
+        scores = [sub.score for sub in submissions]
+        percentages = [sub.percentage for sub in submissions]
+        
+        analytics = {
+            'total_submissions': submissions.count(),
+            'average_score': round(sum(scores) / len(scores), 2),
+            'average_percentage': round(sum(percentages) / len(percentages), 2),
+            'highest_score': max(scores),
+            'lowest_score': min(scores),
+            'pass_rate': round(len([p for p in percentages if p >= 60]) / len(percentages) * 100, 2),
+            'score_distribution': {
+                'excellent': len([p for p in percentages if p >= 80]),
+                'good': len([p for p in percentages if 60 <= p < 80]),
+                'needs_improvement': len([p for p in percentages if p < 60])
+            }
+        }
+        
+        # Question difficulty analysis
+        question_stats = []
+        for i in range(test.num_questions):
+            correct_count = sum(1 for sub in submissions if i < len(sub.answers) and sub.answers[i] == test.questions[i]['correct_answer'])
+            difficulty = round(correct_count / submissions.count() * 100, 2)
+            
+            question_stats.append({
+                'question_num': i + 1,
+                'correct_count': correct_count,
+                'difficulty_percentage': difficulty,
+                'question_text': test.questions[i]['question'][:50] + '...' if len(test.questions[i]['question']) > 50 else test.questions[i]['question']
+            })
+        
+        # Sort by difficulty (hardest first)
+        question_stats.sort(key=lambda x: x['difficulty_percentage'])
+        
+        analytics['question_difficulty'] = question_stats[:5]  # Top 5 hardest questions
+        
+        return JsonResponse(analytics)
+        
+    except Test.DoesNotExist:
+        return JsonResponse({"error": "Test not found"}, status=404)
+
+
+import csv
+from django.http import HttpResponse
+
+@login_required
+def export_results_csv(request, test_id):
+    """Export test results to CSV"""
+    try:
+        test = Test.objects.get(id=test_id, created_by=request.user)
+        submissions = test.submissions.filter(processed=True).order_by('-percentage')
+        
+        # Create CSV response
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="test_{test_id}_results.csv"'
+        
+        writer = csv.writer(response)
+        
+        # Write header
+        header = ['Rank', 'First Name', 'Last Name', 'Score', 'Total', 'Percentage', 'Grade', 'Submitted At']
+        
+        # Add question columns
+        for i in range(test.num_questions):
+            header.append(f'Q{i+1}')
+        
+        writer.writerow(header)
+        
+        # Write data
+        for rank, submission in enumerate(submissions, start=1):
+            grade = 'A' if submission.percentage >= 90 else \
+                   'B' if submission.percentage >= 80 else \
+                   'C' if submission.percentage >= 70 else \
+                   'D' if submission.percentage >= 60 else 'F'
+            
+            row = [
+                rank,
+                submission.first_name or '',
+                submission.last_name or '',
+                submission.score,
+                submission.total_questions,
+                f'{submission.percentage}%',
+                grade,
+                submission.submitted_at.strftime('%Y-%m-%d %H:%M')
+            ]
+            
+            # Add answers (show option letter)
+            option_letters = ['A', 'B', 'C', 'D', 'E']
+            for i in range(test.num_questions):
+                if i < len(submission.answers) and submission.answers[i] is not None:
+                    answer_idx = submission.answers[i]
+                    if answer_idx < len(option_letters):
+                        row.append(option_letters[answer_idx])
+                    else:
+                        row.append(str(answer_idx))
+                else:
+                    row.append('-')
+            
+            writer.writerow(row)
+        
+        # Write summary statistics
+        writer.writerow([])
+        writer.writerow(['SUMMARY STATISTICS'])
+        writer.writerow(['Total Submissions', submissions.count()])
+        
+        if submissions.count() > 0:
+            avg_score = sum(s.score for s in submissions) / submissions.count()
+            avg_pct = sum(s.percentage for s in submissions) / submissions.count()
+            writer.writerow(['Average Score', f'{avg_score:.2f}/{test.num_questions}'])
+            writer.writerow(['Average Percentage', f'{avg_pct:.2f}%'])
+            writer.writerow(['Highest Score', max(s.score for s in submissions)])
+            writer.writerow(['Lowest Score', min(s.score for s in submissions)])
+            pass_count = len([s for s in submissions if s.percentage >= 60])
+            writer.writerow(['Pass Rate (≥60%)', f'{pass_count}/{submissions.count()} ({pass_count/submissions.count()*100:.1f}%)'])
+        
+        return response
+        
+    except Test.DoesNotExist:
+        return HttpResponse("Test not found", status=404)

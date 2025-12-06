@@ -89,12 +89,28 @@ def generate_test_pdf(json_file, output_pdf):
 
     y_position -= 1.5 * cm
 
-    c.setFont(font_regular, 11)
-    c.drawString(margin, y_position, "Nume: ________________________________")
+    # Student name fields with boxes
+    c.setFont(font_bold, 11)
 
-    y_position -= 2 * cm
-    c.drawString(margin, y_position, "Prenume: _____________________________")
-    y_position -= 2 * cm
+    # Name field
+    c.drawString(margin, y_position, "Name:")
+    name_box_x = margin + 2.5 * cm
+    name_box_y = y_position - 0.3 * cm
+    name_box_width = 10 * cm
+    name_box_height = 0.8 * cm
+    c.rect(name_box_x, name_box_y, name_box_width, name_box_height)
+
+    y_position -= 1.5 * cm
+
+    # Surname field
+    c.drawString(margin, y_position, "Surname:")
+    surname_box_x = margin + 2.5 * cm
+    surname_box_y = y_position - 0.3 * cm
+    surname_box_width = 10 * cm
+    surname_box_height = 0.8 * cm
+    c.rect(surname_box_x, surname_box_y, surname_box_width, surname_box_height)
+
+    y_position -= 1.5 * cm
 
     row_height = 1 * cm
     box_height = (data['num_questions'] * row_height + 0.3*cm)
@@ -200,12 +216,28 @@ def generate_test_pdf_from_db(test_obj, output_pdf):
 
     y_position -= 1.5 * cm
 
-    # Student name fields
-    c.setFont(font_regular, 11)
-    c.drawString(margin, y_position, "Name: ________________________________")
-    y_position -= 2 * cm
-    c.drawString(margin, y_position, "Surname: _____________________________")
-    y_position -= 2 * cm
+    # Student name fields with boxes
+    c.setFont(font_bold, 11)
+
+    # Name field
+    c.drawString(margin, y_position, "Name:")
+    name_box_x = margin + 2.5 * cm
+    name_box_y = y_position - 0.3 * cm
+    name_box_width = 10 * cm
+    name_box_height = 0.8 * cm
+    c.rect(name_box_x, name_box_y, name_box_width, name_box_height)
+
+    y_position -= 1.5 * cm
+
+    # Surname field
+    c.drawString(margin, y_position, "Surname:")
+    surname_box_x = margin + 2.5 * cm
+    surname_box_y = y_position - 0.3 * cm
+    surname_box_width = 10 * cm
+    surname_box_height = 0.8 * cm
+    c.rect(surname_box_x, surname_box_y, surname_box_width, surname_box_height)
+
+    y_position -= 1.5 * cm
 
     # Answer grid
     row_height = 1 * cm

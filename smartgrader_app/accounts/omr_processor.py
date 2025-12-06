@@ -67,36 +67,57 @@ def find_answer_sheet(contours, img_original):
         return None
 
 
-def extract_student_info(img):
+def extract_student_info(img, debug_path=None):
     """
     Extract student name and surname from the top portion of the image using OCR
 
     Args:
         img: Grayscale image of the answer sheet
+        debug_path: Optional path to save debug images
 
     Returns:
-        dict with 'first_name' and 'last_name' keys
+        dict with 'first_name', 'last_name', and 'debug_text' keys
     """
     if not HAS_TESSERACT:
-        return {'first_name': None, 'last_name': None}
+        return {'first_name': None, 'last_name': None, 'debug_text': 'Tesseract not installed'}
 
     try:
-        # Extract top portion of image (first 15% contains name/surname fields)
+        # Extract top portion of image (first 20% contains name/surname fields)
         height, width = img.shape
-        name_region = img[0:int(height * 0.15), :]
+        name_region = img[0:int(height * 0.20), :]
 
-        # Preprocess for better OCR
-        # Apply adaptive thresholding
+        # Save original region for debugging
+        if debug_path:
+            cv2.imwrite(f"{debug_path}_1_original_region.png", name_region)
+
+        # Enhanced preprocessing pipeline
+        # 1. Increase contrast
+        name_region = cv2.equalizeHist(name_region)
+
+        # 2. Apply bilateral filter to reduce noise while keeping edges
+        name_region = cv2.bilateralFilter(name_region, 9, 75, 75)
+
+        # 3. Apply adaptive thresholding
         name_region = cv2.adaptiveThreshold(
             name_region, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY, 11, 2
+            cv2.THRESH_BINARY, 15, 10
         )
 
-        # Denoise
-        name_region = cv2.fastNlMeansDenoising(name_region, None, 10, 7, 21)
+        # 4. Morphological operations to clean up
+        kernel = np.ones((2,2), np.uint8)
+        name_region = cv2.morphologyEx(name_region, cv2.MORPH_CLOSE, kernel)
 
-        # Extract text using OCR
-        text = pytesseract.image_to_string(name_region, config='--psm 6')
+        # Save preprocessed region for debugging
+        if debug_path:
+            cv2.imwrite(f"{debug_path}_2_preprocessed.png", name_region)
+
+        # Extract text using OCR with improved config
+        custom_config = r'--oem 3 --psm 6'
+        text = pytesseract.image_to_string(name_region, config=custom_config)
+
+        # Debug: log extracted text
+        debug_text = f"Extracted text:\n{text}"
+        print(debug_text)
 
         # Parse name and surname from text
         lines = text.strip().split('\n')
@@ -105,45 +126,59 @@ def extract_student_info(img):
 
         for i, line in enumerate(lines):
             line = line.strip()
+            print(f"Line {i}: {line}")
 
-            # Look for "Name" field
-            if 'name' in line.lower() and 'surname' not in line.lower():
+            # More flexible name matching
+            # Look for "Name" field (case insensitive, handles typos)
+            if re.search(r'n[ao]me', line, re.IGNORECASE) and not re.search(r'surname|last', line, re.IGNORECASE):
                 # Try to extract name from same line
-                name_match = re.search(r'name[:\s_]*([A-Za-z]+)', line, re.IGNORECASE)
+                name_match = re.search(r'n[ao]me[:\s_\-]*([A-Za-z]{2,})', line, re.IGNORECASE)
                 if name_match:
                     first_name = name_match.group(1).strip()
+                    print(f"Found name on same line: {first_name}")
                 # If not on same line, check next line
                 elif i + 1 < len(lines):
                     next_line = lines[i + 1].strip()
-                    # Remove underscores and get first word
-                    next_line = re.sub(r'_+', '', next_line)
-                    words = next_line.split()
+                    # Remove underscores, dashes, and extract text
+                    next_line = re.sub(r'[_\-]+', ' ', next_line)
+                    # Get words that are at least 2 characters and alphabetic
+                    words = [w for w in next_line.split() if len(w) >= 2 and w.isalpha()]
                     if words:
                         first_name = words[0]
+                        print(f"Found name on next line: {first_name}")
 
             # Look for "Surname" field
-            if 'surname' in line.lower() or 'last name' in line.lower():
+            if re.search(r'surname|last\s*name', line, re.IGNORECASE):
                 # Try to extract surname from same line
-                surname_match = re.search(r'surname[:\s_]*([A-Za-z]+)', line, re.IGNORECASE)
+                surname_match = re.search(r'surname[:\s_\-]*([A-Za-z]{2,})', line, re.IGNORECASE)
                 if surname_match:
                     last_name = surname_match.group(1).strip()
+                    print(f"Found surname on same line: {last_name}")
                 # If not on same line, check next line
                 elif i + 1 < len(lines):
                     next_line = lines[i + 1].strip()
-                    # Remove underscores and get first word
-                    next_line = re.sub(r'_+', '', next_line)
-                    words = next_line.split()
+                    # Remove underscores, dashes, and extract text
+                    next_line = re.sub(r'[_\-]+', ' ', next_line)
+                    # Get words that are at least 2 characters and alphabetic
+                    words = [w for w in next_line.split() if len(w) >= 2 and w.isalpha()]
                     if words:
                         last_name = words[0]
+                        print(f"Found surname on next line: {last_name}")
+
+        print(f"Final result - First: {first_name}, Last: {last_name}")
 
         return {
             'first_name': first_name,
-            'last_name': last_name
+            'last_name': last_name,
+            'debug_text': text
         }
 
     except Exception as e:
-        print(f"Error extracting student info: {e}")
-        return {'first_name': None, 'last_name': None}
+        error_msg = f"Error extracting student info: {e}"
+        print(error_msg)
+        import traceback
+        traceback.print_exc()
+        return {'first_name': None, 'last_name': None, 'debug_text': error_msg}
 
 
 def detect_answers(img, num_questions=20, num_options=5):
