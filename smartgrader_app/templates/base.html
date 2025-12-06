@@ -5,10 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{% static 'css/navbar.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
     <title>{% block title %}SmartGrader{% endblock %}</title>
 </head>
 <body>
     {% include 'components/navbar.html' %}
     {% block content %}{% endblock %}
+
+    <!-- Toast notification container -->
+    <div id="toast-container"></div>
+
+    <!-- Toast notification script -->
+    <script src="{% static 'js/toast.js' %}"></script>
 </body>
 </html>
