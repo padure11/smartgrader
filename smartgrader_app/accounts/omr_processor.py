@@ -2,13 +2,6 @@ import cv2
 import numpy as np
 import sys
 import os
-import re
-
-try:
-    import pytesseract
-    HAS_TESSERACT = True
-except ImportError:
-    HAS_TESSERACT = False
 
 # Add grade_processor to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'grade_processor'))
@@ -259,9 +252,6 @@ def process_omr_image(image_path, num_questions=20, num_options=5):
         if answer_sheet is None:
             return {'success': False, 'error': 'Could not find answer sheet rectangle in image'}
 
-        # Extract student name and surname from original grayscale image
-        student_info = extract_student_info(img_gray)
-
         # Threshold the image
         _, img_threshold = cv2.threshold(answer_sheet, 150, 255, cv2.THRESH_BINARY_INV)
 
@@ -271,8 +261,6 @@ def process_omr_image(image_path, num_questions=20, num_options=5):
         return {
             'success': True,
             'answers': answers,
-            'first_name': student_info['first_name'],
-            'last_name': student_info['last_name'],
             'error': None
         }
 
