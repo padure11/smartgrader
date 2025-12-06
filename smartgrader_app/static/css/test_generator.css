@@ -135,6 +135,10 @@
     margin-top: 15px;
 }
 
+.options-container > label {
+    color: #ddd;
+}
+
 .option-group {
     display: flex;
     align-items: center;
@@ -145,6 +149,7 @@
     min-width: 80px;
     margin: 0;
     font-weight: 500;
+    color: #ddd;
 }
 
 .option-group input[type="text"] {
