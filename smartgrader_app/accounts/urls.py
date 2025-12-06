@@ -15,6 +15,7 @@ urlpatterns = [
     path("test-generator/", views.test_generator_page, name="test-generator"),
     path("tests/", views.test_list_page, name="test-list"),
     path("tests/<int:test_id>/", views.test_detail_page, name="test-detail"),
+    path("tests/<int:test_id>/update-name/", views.update_test_name, name="update-test-name"),
     path("tests/<int:test_id>/generate-pdf/", views.generate_pdf_api, name="generate-pdf"),
     path("tests/<int:test_id>/delete/", views.delete_test_api, name="delete-test"),
     path("tests/<int:test_id>/upload-submissions/", views.upload_submissions, name="upload-submissions"),

@@ -496,6 +496,7 @@ def submission_detail_page(request, test_id, submission_id):
         return render(request, 'accounts/test_not_found.html', status=404)
 
 
+@csrf_exempt
 @login_required
 def update_submission_name(request, test_id, submission_id):
     """Update the student name on a submission"""
@@ -527,6 +528,39 @@ def update_submission_name(request, test_id, submission_id):
 
     except (Test.DoesNotExist, Submission.DoesNotExist):
         return JsonResponse({'error': 'Test or submission not found'}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@login_required
+def update_test_name(request, test_id):
+    """Update the test name/title"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+    try:
+        test = Test.objects.get(id=test_id, created_by=request.user)
+
+        data = json.loads(request.body)
+        title = data.get('title', '').strip()
+
+        if not title:
+            return JsonResponse({'error': 'Test title is required'}, status=400)
+
+        # Update the test
+        test.title = title
+        test.save()
+
+        return JsonResponse({
+            'success': True,
+            'title': title
+        })
+
+    except Test.DoesNotExist:
+        return JsonResponse({'error': 'Test not found'}, status=404)
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON data'}, status=400)
     except Exception as e:
