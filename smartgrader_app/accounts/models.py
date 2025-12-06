@@ -69,8 +69,7 @@ class Test(models.Model):
 
 class Submission(models.Model):
     test = models.ForeignKey(Test, on_delete=models.CASCADE, related_name='submissions')
-    first_name = models.CharField(max_length=100, blank=True, null=True)
-    last_name = models.CharField(max_length=100, blank=True, null=True)
+    student_name = models.CharField(max_length=255, blank=True, null=True)
     image = models.ImageField(upload_to='submissions/')
     answers = models.JSONField()  # Stores detected answers as array [0, 1, 2, ...] where index is question number
     score = models.IntegerField()  # Number of correct answers
@@ -83,16 +82,5 @@ class Submission(models.Model):
     class Meta:
         ordering = ['-submitted_at']
 
-    @property
-    def full_name(self):
-        """Return full name of student"""
-        if self.first_name and self.last_name:
-            return f"{self.first_name} {self.last_name}"
-        elif self.first_name:
-            return self.first_name
-        elif self.last_name:
-            return self.last_name
-        return "Unknown"
-
     def __str__(self):
-        return f"{self.full_name} - {self.test.title} - {self.score}/{self.total_questions}"
+        return f"{self.student_name or 'Unknown'} - {self.test.title} - {self.score}/{self.total_questions}"
