@@ -180,6 +180,7 @@ def parse_name_from_text(text):
 
     print(f"\nParsing text ({len(lines)} lines):")
 
+    # First pass: look for explicit patterns with colons
     for i, line in enumerate(lines):
         line = line.strip()
         if not line:
@@ -187,38 +188,89 @@ def parse_name_from_text(text):
 
         print(f"  Line {i}: '{line}'")
 
-        # Look for "Name:" label and value
-        if re.search(r'\bname\b', line, re.IGNORECASE) and not re.search(r'surname|last', line, re.IGNORECASE):
-            # Try to extract from same line (e.g., "Name: John" or "Name:John")
-            match = re.search(r'\bname\s*:?\s*([A-Za-z]+)', line, re.IGNORECASE)
+        # Look for "Name:" label (with colon) - NOT surname
+        if re.search(r'\bname\s*:', line, re.IGNORECASE) and not re.search(r'surname|last', line, re.IGNORECASE):
+            print(f"    → Found 'Name:' label (with colon)")
+            # Try to extract from same line (e.g., "Name: Gaspar" or "Name:Gaspar")
+            match = re.search(r'\bname\s*:\s*([A-Za-z]{2,})', line, re.IGNORECASE)
             if match:
                 first_name = match.group(1).strip()
-                print(f"    → Found first name on same line: {first_name}")
+                print(f"    → ✓ Extracted first name from same line: '{first_name}'")
             # Otherwise check next line
             elif i + 1 < len(lines):
                 next_line = lines[i + 1].strip()
+                print(f"    → Checking next line for first name: '{next_line}'")
                 # Extract alphabetic words
                 words = re.findall(r'[A-Za-z]{2,}', next_line)
                 if words:
                     first_name = words[0]
-                    print(f"    → Found first name on next line: {first_name}")
+                    print(f"    → ✓ Extracted first name from next line: '{first_name}'")
 
-        # Look for "Surname:" label and value
-        if re.search(r'\bsurname\b|\blast\s*name\b', line, re.IGNORECASE):
+        # Look for "Surname:" label (with colon)
+        if re.search(r'\bsurname\s*:|\blast\s*name\s*:', line, re.IGNORECASE):
+            print(f"    → Found 'Surname:' or 'Last name:' label (with colon)")
             # Try to extract from same line
-            match = re.search(r'\b(?:surname|last\s*name)\s*:?\s*([A-Za-z]+)', line, re.IGNORECASE)
+            match = re.search(r'\b(?:surname|last\s*name)\s*:\s*([A-Za-z]{2,})', line, re.IGNORECASE)
             if match:
                 last_name = match.group(1).strip()
-                print(f"    → Found last name on same line: {last_name}")
+                print(f"    → ✓ Extracted last name from same line: '{last_name}'")
             # Otherwise check next line
             elif i + 1 < len(lines):
                 next_line = lines[i + 1].strip()
+                print(f"    → Checking next line for last name: '{next_line}'")
                 # Extract alphabetic words
                 words = re.findall(r'[A-Za-z]{2,}', next_line)
                 if words:
                     last_name = words[0]
-                    print(f"    → Found last name on next line: {last_name}")
+                    print(f"    → ✓ Extracted last name from next line: '{last_name}'")
 
+    # Second pass: if we still don't have first_name, look for standalone "Name" without colon
+    if not first_name:
+        print("\n  Second pass: looking for standalone 'Name' without colon...")
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if not line:
+                continue
+
+            # Look for just "Name" word (case insensitive, without surname)
+            if re.search(r'^name$', line, re.IGNORECASE) and not re.search(r'surname', line, re.IGNORECASE):
+                if i + 1 < len(lines):
+                    print(f"    → Found standalone 'Name' at line {i}")
+                    next_line = lines[i + 1].strip()
+                    print(f"    → Checking next line: '{next_line}'")
+                    words = re.findall(r'[A-Za-z]{2,}', next_line)
+                    if words:
+                        first_name = words[0]
+                        print(f"    → ✓ Extracted first name: '{first_name}'")
+                        break
+
+    # Third pass: if still no first_name, try more aggressive matching
+    if not first_name:
+        print("\n  Third pass: aggressive search for any 'name' pattern...")
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if not line:
+                continue
+
+            # Any line containing "name" but not "surname" or "last"
+            if re.search(r'name', line, re.IGNORECASE) and not re.search(r'surname|last', line, re.IGNORECASE):
+                print(f"    → Found line with 'name': '{line}'")
+                # Try to extract any alphabetic word after "name"
+                match = re.search(r'name\s*:?\s*([A-Za-z]{2,})', line, re.IGNORECASE)
+                if match and match.group(1).lower() != 'name':
+                    first_name = match.group(1).strip()
+                    print(f"    → ✓ Extracted first name: '{first_name}'")
+                    break
+                # Check next line
+                elif i + 1 < len(lines):
+                    next_line = lines[i + 1].strip()
+                    words = re.findall(r'[A-Za-z]{2,}', next_line)
+                    if words and words[0].lower() not in ['name', 'surname', 'last']:
+                        first_name = words[0]
+                        print(f"    → ✓ Extracted first name from next line: '{first_name}'")
+                        break
+
+    print(f"\n  ✓ Final parse result: first_name='{first_name}', last_name='{last_name}'")
     return {'first_name': first_name, 'last_name': last_name}
 
 
