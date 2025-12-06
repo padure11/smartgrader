@@ -2,10 +2,19 @@ import cv2
 import numpy as np
 import sys
 import os
+import traceback
 
 # Add grade_processor to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'grade_processor'))
 import utils
+
+# Try to import pytesseract for OCR
+try:
+    import pytesseract
+    HAS_TESSERACT = True
+except ImportError:
+    HAS_TESSERACT = False
+    print("Warning: pytesseract not installed. OCR name extraction will be disabled.")
 
 
 def order_points(pts):
