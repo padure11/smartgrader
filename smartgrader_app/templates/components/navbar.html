@@ -10,8 +10,12 @@
     <ul class="menu">
         <li><a href="/">Home</a></li>
         {% if user.is_authenticated %}
-            <li><a href="/test-generator/">Create Test</a></li>
-            <li><a href="/tests/">My Tests</a></li>
+            {% if user_profile and user_profile.role == 'teacher' %}
+                <li><a href="/test-generator/">Create Test</a></li>
+                <li><a href="/tests/">My Tests</a></li>
+            {% else %}
+                <li><a href="/student/">My Tests</a></li>
+            {% endif %}
             <li class="user-info">{{ user.email }}</li>
             <li><a href="/logout/" class="logout-btn">Logout</a></li>
         {% else %}

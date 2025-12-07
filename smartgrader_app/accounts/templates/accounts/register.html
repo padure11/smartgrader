@@ -160,6 +160,14 @@
 
         <form id="register-form">
             <div class="form-group">
+                <label for="role">I am a...</label>
+                <select id="role" name="role" required style="width: 100%; padding: 14px 16px; border: none; border-radius: 10px; font-size: 15px; background: rgba(255, 255, 255, 0.95); cursor: pointer;">
+                    <option value="student">Student</option>
+                    <option value="teacher">Teacher</option>
+                </select>
+            </div>
+
+            <div class="form-group">
                 <label for="email">Email Address</label>
                 <input type="email" id="email" name="email" placeholder="your@email.com" required>
             </div>
@@ -199,24 +207,25 @@ document.getElementById('register-form').addEventListener('submit', async functi
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     const confirmPassword = document.getElementById('confirm-password').value;
-    
+    const role = document.getElementById('role').value;
+
     // Validate passwords match
     if (password !== confirmPassword) {
         errorDiv.textContent = 'Passwords do not match';
         errorDiv.style.display = 'block';
         return;
     }
-    
+
     submitBtn.disabled = true;
     submitBtn.textContent = 'Creating Account...';
-    
+
     try {
         const response = await fetch('/accounts/api-register/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ email, password, role })
         });
         
         const data = await response.json();
@@ -225,7 +234,12 @@ document.getElementById('register-form').addEventListener('submit', async functi
             successDiv.textContent = 'Account created successfully! Redirecting...';
             successDiv.style.display = 'block';
             setTimeout(() => {
-                window.location.href = '/tests/';
+                // Redirect based on role
+                if (role === 'teacher') {
+                    window.location.href = '/tests/';
+                } else {
+                    window.location.href = '/student/';
+                }
             }, 1000);
         } else {
             errorDiv.textContent = data.error || 'Registration failed';
