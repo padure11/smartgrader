@@ -5,5 +5,9 @@ from .models import Profile
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_profile(sender, instance, created, **kwargs):
-    if created:
-        Profile.objects.create(user=instance)
+    """
+    DISABLED: Profile creation is handled in the registration view
+    to allow role selection during registration.
+    """
+    # Do not auto-create profiles - let the registration view handle it
+    pass
