@@ -5,7 +5,10 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
-from .models import Test, Submission, TestEnrollment, Profile
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from .models import Test, Submission, TestEnrollment, Profile, EmailVerificationToken
 from .decorators import teacher_required, student_required
 import json
 import os
@@ -21,6 +24,50 @@ sys.path.append(os.path.join(settings.BASE_DIR.parent, 'pdf_generator'))
 from pdf_generator import generate_test_pdf_from_db
 
 User = get_user_model()
+
+
+def send_verification_email(user, request):
+    """Send email verification link to user"""
+    try:
+        # Create verification token
+        token = EmailVerificationToken.objects.create(user=user)
+
+        # Build verification URL
+        verification_url = request.build_absolute_uri(
+            f'/accounts/verify-email/{token.token}/'
+        )
+
+        # Email subject and message
+        subject = 'Verify your SmartGrader account'
+        message = f"""
+        Hi {user.first_name},
+
+        Thank you for registering with SmartGrader!
+
+        Please verify your email address by clicking the link below:
+        {verification_url}
+
+        This link will expire in 24 hours.
+
+        If you didn't create this account, please ignore this email.
+
+        Best regards,
+        SmartGrader Team
+        """
+
+        # Send email
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            fail_silently=False,
+        )
+        return True
+    except Exception as e:
+        print(f"Error sending verification email: {str(e)}")
+        return False
+
 
 def landing(request):
     return render(request, 'accounts/landing.html')
@@ -60,25 +107,34 @@ def register_user(request):
         if User.objects.filter(email=email).exists():
             return JsonResponse({"error": "Email already registered"}, status=400)
 
-        # Create user with first and last name
+        # Create user with first and last name (inactive until email verification)
         user = User.objects.create_user(
             email=email,
             password=password,
             first_name=first_name,
-            last_name=last_name
+            last_name=last_name,
+            is_active=False  # Require email verification
         )
 
         # Create profile with the selected role
         # Note: Signal auto-creation is disabled to allow role selection
         profile = Profile.objects.create(user=user, role=role)
 
-        login(request, user)  # Auto login after registration
+        # Send verification email
+        email_sent = send_verification_email(user, request)
+
+        if not email_sent:
+            # If email fails, still create account but warn user
+            return JsonResponse({
+                "message": "Account created but verification email failed to send. Please contact support.",
+                "email": user.email,
+                "requires_verification": True
+            }, status=201)
 
         return JsonResponse({
-            "message": "User created successfully",
+            "message": "Account created! Please check your email to verify your account.",
             "email": user.email,
-            "name": f"{user.first_name} {user.last_name}",
-            "role": profile.role
+            "requires_verification": True
         }, status=201)
 
     except Exception as e:
@@ -101,6 +157,12 @@ def login_user(request):
         if user is None:
             return JsonResponse({"error": "Invalid credentials"}, status=400)
 
+        # Check if user has verified their email
+        if not user.is_active:
+            return JsonResponse({
+                "error": "Please verify your email address before logging in. Check your inbox for the verification link."
+            }, status=403)
+
         login(request, user)
 
         # Get or create user profile
@@ -114,6 +176,78 @@ def login_user(request):
 
     except Exception as e:
         return JsonResponse({"error": f"Login failed: {str(e)}"}, status=500)
+
+
+def verify_email(request, token):
+    """Verify user email with token"""
+    try:
+        # Find token
+        verification_token = EmailVerificationToken.objects.get(token=token)
+
+        # Check if token is expired
+        if verification_token.is_expired():
+            return render(request, 'accounts/verification_result.html', {
+                'success': False,
+                'message': 'This verification link has expired. Please contact support to resend a verification email.'
+            })
+
+        # Activate user
+        user = verification_token.user
+        user.is_active = True
+        user.save()
+
+        # Delete used token
+        verification_token.delete()
+
+        return render(request, 'accounts/verification_result.html', {
+            'success': True,
+            'message': 'Email verified successfully! You can now log in to your account.'
+        })
+
+    except EmailVerificationToken.DoesNotExist:
+        return render(request, 'accounts/verification_result.html', {
+            'success': False,
+            'message': 'Invalid verification link. Please check your email or contact support.'
+        })
+
+
+@login_required
+def profile_page(request):
+    """Display user profile information"""
+    user = request.user
+    profile = Profile.objects.get(user=user)
+
+    # Get user statistics
+    if profile.role == 'teacher':
+        # Teacher stats
+        total_tests = Test.objects.filter(created_by=user).count()
+        total_submissions = Submission.objects.filter(test__created_by=user).count()
+        total_students = TestEnrollment.objects.filter(test__created_by=user).values('student').distinct().count()
+    else:
+        # Student stats
+        total_tests = TestEnrollment.objects.filter(student=user).count()
+        total_submissions = Submission.objects.filter(student_user=user).count()
+        avg_score = 0
+        if total_submissions > 0:
+            submissions = Submission.objects.filter(student_user=user, processed=True)
+            if submissions.exists():
+                avg_score = sum(s.percentage for s in submissions) / submissions.count()
+
+    context = {
+        'user': user,
+        'profile': profile,
+    }
+
+    if profile.role == 'teacher':
+        context['total_tests'] = total_tests
+        context['total_submissions'] = total_submissions
+        context['total_students'] = total_students
+    else:
+        context['total_tests'] = total_tests
+        context['total_submissions'] = total_submissions
+        context['avg_score'] = round(avg_score, 1) if total_submissions > 0 else 0
+
+    return render(request, 'accounts/profile.html', context)
 
 
 @login_required

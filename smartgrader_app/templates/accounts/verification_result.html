@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Email Verification - SmartGrader{% endblock %}
+
+{% block content %}
+<style>
+    .verification-container {
+        min-height: calc(100vh - 200px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+    }
+
+    .verification-card {
+        background: {% if success %}linear-gradient(135deg, #11998e 0%, #38ef7d 100%){% else %}linear-gradient(135deg, #eb3349 0%, #f45c43 100%){% endif %};
+        padding: 50px;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        max-width: 500px;
+        width: 100%;
+        text-align: center;
+    }
+
+    .verification-icon {
+        font-size: 80px;
+        margin-bottom: 20px;
+    }
+
+    .verification-card h1 {
+        color: white;
+        font-size: 32px;
+        margin-bottom: 20px;
+    }
+
+    .verification-card p {
+        color: rgba(255, 255, 255, 0.95);
+        font-size: 18px;
+        line-height: 1.6;
+        margin-bottom: 30px;
+    }
+
+    .verification-btn {
+        background: white;
+        color: {% if success %}#11998e{% else %}#eb3349{% endif %};
+        padding: 15px 40px;
+        border-radius: 30px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 16px;
+        display: inline-block;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .verification-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        color: {% if success %}#0d7a6f{% else %}#c72a38{% endif %};
+    }
+</style>
+
+<div class="verification-container">
+    <div class="verification-card">
+        <div class="verification-icon">
+            {% if success %}
+                ✅
+            {% else %}
+                ❌
+            {% endif %}
+        </div>
+        <h1>{% if success %}Email Verified!{% else %}Verification Failed{% endif %}</h1>
+        <p>{{ message }}</p>
+        <a href="{% url 'login' %}" class="verification-btn">
+            {% if success %}Go to Login{% else %}Back to Login{% endif %}
+        </a>
+    </div>
+</div>
+{% endblock %}
