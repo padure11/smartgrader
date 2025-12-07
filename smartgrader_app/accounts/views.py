@@ -445,6 +445,41 @@ def upload_submissions(request, test_id):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+def match_submission_to_student(submission, test, first_name, last_name):
+    """
+    Try to match a submission to an enrolled student based on name.
+    Returns the matched user or None.
+    """
+    student_user = None
+
+    if not first_name and not last_name:
+        return None
+
+    # Get all enrolled students for this test
+    enrollments = TestEnrollment.objects.filter(test=test).select_related('student')
+
+    for enrollment in enrollments:
+        user = enrollment.student
+        # Try exact match (case-insensitive)
+        user_first = user.first_name.strip().lower() if user.first_name else ''
+        user_last = user.last_name.strip().lower() if user.last_name else ''
+        ocr_first = first_name.lower() if first_name else ''
+        ocr_last = last_name.lower() if last_name else ''
+
+        # Match: first and last name
+        if user_first and user_last and ocr_first and ocr_last:
+            if user_first == ocr_first and user_last == ocr_last:
+                return user
+            # Try swapped (in case OCR detected them backwards)
+            if user_first == ocr_last and user_last == ocr_first:
+                return user
+        # Match: only last name (more unique)
+        elif user_last and ocr_last and user_last == ocr_last:
+            return user
+
+    return None
+
+
 def process_single_submission(test, image_path, filename, correct_answers):
     """Process a single submission image"""
     try:
@@ -471,38 +506,12 @@ def process_single_submission(test, image_path, filename, correct_answers):
             image_content = f.read()
         saved_path = default_storage.save(submission_image_path, ContentFile(image_content))
 
-        # Try to match OCR-detected name with enrolled student
-        student_user = None
+        # Extract student info from OCR
         first_name = student_info.get('first_name', '').strip()
         last_name = student_info.get('last_name', '').strip()
 
-        if first_name or last_name:
-            # Get all enrolled students for this test
-            enrollments = TestEnrollment.objects.filter(test=test).select_related('student')
-
-            for enrollment in enrollments:
-                user = enrollment.student
-                # Try exact match (case-insensitive)
-                user_first = user.first_name.strip().lower() if user.first_name else ''
-                user_last = user.last_name.strip().lower() if user.last_name else ''
-                ocr_first = first_name.lower()
-                ocr_last = last_name.lower()
-
-                # Match: first and last name
-                if user_first and user_last and ocr_first and ocr_last:
-                    if user_first == ocr_first and user_last == ocr_last:
-                        student_user = user
-                        break
-                    # Try swapped (in case OCR detected them backwards)
-                    if user_first == ocr_last and user_last == ocr_first:
-                        student_user = user
-                        # Swap them back to correct order
-                        first_name, last_name = last_name, first_name
-                        break
-                # Match: only last name (more unique)
-                elif user_last and ocr_last and user_last == ocr_last:
-                    student_user = user
-                    break
+        # Try to match with enrolled student
+        student_user = match_submission_to_student(None, test, first_name, last_name)
 
         submission = Submission.objects.create(
             test=test,
@@ -620,13 +629,20 @@ def update_submission_name(request, test_id, submission_id):
         # Update the submission
         submission.first_name = first_name
         submission.last_name = last_name
+
+        # Try to match with enrolled student based on the updated name
+        matched_student = match_submission_to_student(submission, test, first_name, last_name)
+        if matched_student:
+            submission.student_user = matched_student
+
         submission.save()
 
         return JsonResponse({
             'success': True,
             'full_name': submission.full_name,
             'first_name': first_name,
-            'last_name': last_name
+            'last_name': last_name,
+            'matched_student': matched_student.email if matched_student else None
         })
 
     except (Test.DoesNotExist, Submission.DoesNotExist):
