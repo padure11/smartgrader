@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Profile - SmartGrader{% endblock %}
+
+{% block content %}
+<style>
+    .profile-container {
+        max-width: 1000px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 40px;
+        border-radius: 20px;
+        color: white;
+        margin-bottom: 30px;
+        text-align: center;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 48px;
+        margin: 0 auto 20px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .profile-name {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .profile-email {
+        font-size: 16px;
+        opacity: 0.9;
+        margin-bottom: 10px;
+    }
+
+    .profile-role {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-top: 10px;
+    }
+
+    .profile-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+
+    .profile-card {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .profile-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .profile-card h3 {
+        color: #333;
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 15px;
+        opacity: 0.7;
+    }
+
+    .profile-card .value {
+        font-size: 48px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 5px;
+    }
+
+    .profile-card .label {
+        color: #666;
+        font-size: 16px;
+    }
+
+    .info-section {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .info-section h2 {
+        color: #333;
+        font-size: 24px;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 15px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        color: #666;
+        font-weight: 600;
+    }
+
+    .info-value {
+        color: #333;
+    }
+
+    .btn-logout {
+        background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        margin-top: 20px;
+        transition: all 0.3s;
+        box-shadow: 0 5px 15px rgba(235, 51, 73, 0.3);
+    }
+
+    .btn-logout:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(235, 51, 73, 0.4);
+    }
+
+    @media (max-width: 768px) {
+        .profile-header {
+            padding: 30px 20px;
+        }
+
+        .profile-name {
+            font-size: 24px;
+        }
+
+        .profile-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="profile-container">
+    <div class="profile-header">
+        <div class="profile-avatar">
+            {% if profile.role == 'teacher' %}
+                👨‍🏫
+            {% else %}
+                👨‍🎓
+            {% endif %}
+        </div>
+        <div class="profile-name">{{ user.first_name }} {{ user.last_name }}</div>
+        <div class="profile-email">{{ user.email }}</div>
+        <div class="profile-role">{{ profile.role }}</div>
+    </div>
+
+    <div class="profile-grid">
+        {% if profile.role == 'teacher' %}
+            <div class="profile-card">
+                <h3>Tests Created</h3>
+                <div class="value">{{ total_tests }}</div>
+                <div class="label">Total Tests</div>
+            </div>
+            <div class="profile-card">
+                <h3>Submissions</h3>
+                <div class="value">{{ total_submissions }}</div>
+                <div class="label">Total Submissions</div>
+            </div>
+            <div class="profile-card">
+                <h3>Students</h3>
+                <div class="value">{{ total_students }}</div>
+                <div class="label">Unique Students</div>
+            </div>
+        {% else %}
+            <div class="profile-card">
+                <h3>Tests Enrolled</h3>
+                <div class="value">{{ total_tests }}</div>
+                <div class="label">Total Tests</div>
+            </div>
+            <div class="profile-card">
+                <h3>Submissions</h3>
+                <div class="value">{{ total_submissions }}</div>
+                <div class="label">Tests Taken</div>
+            </div>
+            <div class="profile-card">
+                <h3>Average Score</h3>
+                <div class="value">{{ avg_score }}%</div>
+                <div class="label">Overall Performance</div>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="info-section">
+        <h2>Account Information</h2>
+        <div class="info-row">
+            <span class="info-label">Full Name:</span>
+            <span class="info-value">{{ user.first_name }} {{ user.last_name }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Email Address:</span>
+            <span class="info-value">{{ user.email }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Account Type:</span>
+            <span class="info-value">{{ profile.role|title }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Member Since:</span>
+            <span class="info-value">{{ user.date_joined|date:"F d, Y" }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Account Status:</span>
+            <span class="info-value">{% if user.is_active %}✅ Active{% else %}❌ Inactive{% endif %}</span>
+        </div>
+
+        <a href="{% url 'logout' %}" class="btn-logout">Logout</a>
+    </div>
+</div>
+{% endblock %}

@@ -183,13 +183,13 @@
             </div>
 
             <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" placeholder="Create a password" required minlength="6">
+                <label for="password">Password (minimum 8 characters)</label>
+                <input type="password" id="password" name="password" placeholder="Create a password" required minlength="8">
             </div>
 
             <div class="form-group">
                 <label for="confirm-password">Confirm Password</label>
-                <input type="password" id="confirm-password" name="confirm-password" placeholder="Confirm your password" required minlength="6">
+                <input type="password" id="confirm-password" name="confirm-password" placeholder="Confirm your password" required minlength="8">
             </div>
 
             <button type="submit" class="submit-btn" id="submit-btn">
@@ -228,6 +228,12 @@ document.getElementById('register-form').addEventListener('submit', async functi
         return;
     }
 
+    if (password.length < 8) {
+        errorDiv.textContent = 'Password must be at least 8 characters long';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
     if (password !== confirmPassword) {
         errorDiv.textContent = 'Passwords do not match';
         errorDiv.style.display = 'block';
@@ -253,18 +259,29 @@ document.getElementById('register-form').addEventListener('submit', async functi
         });
         
         const data = await response.json();
-        
+
         if (response.ok) {
-            successDiv.textContent = 'Account created successfully! Redirecting...';
-            successDiv.style.display = 'block';
-            setTimeout(() => {
-                // Redirect based on role
-                if (role === 'teacher') {
-                    window.location.href = '/tests/';
-                } else {
-                    window.location.href = '/student/';
-                }
-            }, 1000);
+            if (data.requires_verification) {
+                // Show verification message
+                successDiv.textContent = data.message;
+                successDiv.style.display = 'block';
+
+                // Redirect to login after 3 seconds
+                setTimeout(() => {
+                    window.location.href = '/login/';
+                }, 3000);
+            } else {
+                // Legacy: if no verification required (shouldn't happen anymore)
+                successDiv.textContent = 'Account created successfully! Redirecting...';
+                successDiv.style.display = 'block';
+                setTimeout(() => {
+                    if (role === 'teacher') {
+                        window.location.href = '/tests/';
+                    } else {
+                        window.location.href = '/student/';
+                    }
+                }, 1000);
+            }
         } else {
             errorDiv.textContent = data.error || 'Registration failed';
             errorDiv.style.display = 'block';
