@@ -38,6 +38,201 @@
         </div>
     </div>
 
+    {% if analysis %}
+    <div class="analysis-section">
+        <h2 style="color: #fff; margin-bottom: 20px; font-size: 24px; font-weight: 600;">Performance Analysis</h2>
+
+        <div class="analysis-grid">
+            <div class="analysis-card">
+                <div class="analysis-header">
+                    <h3>Performance Level</h3>
+                </div>
+                <div class="analysis-content">
+                    <div class="performance-badge {{ analysis.performance_level|lower|cut:' ' }}">
+                        {{ analysis.performance_level }}
+                    </div>
+                    <p class="performance-message">{{ analysis.performance_message }}</p>
+                </div>
+            </div>
+
+            <div class="analysis-card">
+                <div class="analysis-header">
+                    <h3>Class Ranking</h3>
+                </div>
+                <div class="analysis-content">
+                    <div class="ranking-display">
+                        <span class="rank-number">#{{ analysis.student_rank }}</span>
+                        <span class="rank-total">out of {{ analysis.total_students }}</span>
+                    </div>
+                    <div class="rank-percentile">
+                        Top {{ analysis.student_rank }} of {{ analysis.total_students }} students
+                    </div>
+                </div>
+            </div>
+
+            <div class="analysis-card">
+                <div class="analysis-header">
+                    <h3>Class Comparison</h3>
+                </div>
+                <div class="analysis-content">
+                    <div class="comparison-stat">
+                        <span class="stat-label-sm">Your Score:</span>
+                        <span class="stat-value-sm">{{ submission.percentage|floatformat:1 }}%</span>
+                    </div>
+                    <div class="comparison-stat">
+                        <span class="stat-label-sm">Class Average:</span>
+                        <span class="stat-value-sm">{{ analysis.class_average }}%</span>
+                    </div>
+                    <div class="comparison-diff {% if analysis.above_average %}positive{% else %}negative{% endif %}">
+                        {% if analysis.above_average %}
+                            ▲ {{ analysis.performance_diff|floatformat:1 }}% above average
+                        {% else %}
+                            ▼ {{ analysis.performance_diff|abs|floatformat:1 }}% below average
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .analysis-section {
+            margin-bottom: 30px;
+        }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .analysis-card {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .analysis-header h3 {
+            color: #667eea;
+            font-size: 16px;
+            margin: 0 0 15px 0;
+            font-weight: 600;
+        }
+
+        .analysis-content {
+            color: #fff;
+        }
+
+        .performance-badge {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 20px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .performance-badge.excellent {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+
+        .performance-badge.verygood {
+            background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
+            color: white;
+        }
+
+        .performance-badge.good {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .performance-badge.satisfactory {
+            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+            color: #1a1a1a;
+        }
+
+        .performance-badge.needsimprovement {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+        }
+
+        .performance-message {
+            color: #ccc;
+            font-size: 14px;
+            line-height: 1.5;
+            text-align: center;
+            margin: 0;
+        }
+
+        .ranking-display {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .rank-number {
+            font-size: 48px;
+            font-weight: 700;
+            color: #667eea;
+            display: block;
+        }
+
+        .rank-total {
+            font-size: 16px;
+            color: #999;
+        }
+
+        .rank-percentile {
+            text-align: center;
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .comparison-stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #1c1c1c;
+            border-radius: 4px;
+        }
+
+        .stat-label-sm {
+            color: #999;
+            font-size: 14px;
+        }
+
+        .stat-value-sm {
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .comparison-diff {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .comparison-diff.positive {
+            background: rgba(40, 167, 69, 0.2);
+            border: 1px solid #28a745;
+            color: #28a745;
+        }
+
+        .comparison-diff.negative {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid #dc3545;
+            color: #dc3545;
+        }
+    </style>
+    {% endif %}
+
     <div class="answers-section">
         <h2>Answer Review</h2>
 

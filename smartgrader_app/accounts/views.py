@@ -5,7 +5,11 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
-from .models import Test, Submission, TestEnrollment, Profile
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from .models import Test, Submission, TestEnrollment, Profile, EmailVerificationToken
+from .decorators import teacher_required, student_required
 import json
 import os
 import sys
@@ -14,12 +18,57 @@ import zipfile
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from .omr_processor import process_omr_image, grade_submission
+from django.conf import settings
 
 # Add pdf_generator to path
 sys.path.append(os.path.join(settings.BASE_DIR.parent, 'pdf_generator'))
 from pdf_generator import generate_test_pdf_from_db
 
 User = get_user_model()
+
+
+def send_verification_email(user, request):
+    """Send email verification link to user"""
+    try:
+        # Create verification token
+        token = EmailVerificationToken.objects.create(user=user)
+
+        # Build verification URL
+        verification_url = request.build_absolute_uri(
+            f'/accounts/verify-email/{token.token}/'
+        )
+
+        # Email subject and message
+        subject = 'Verify your SmartGrader account'
+        message = f"""
+        Hi {user.first_name},
+
+        Thank you for registering with SmartGrader!
+
+        Please verify your email address by clicking the link below:
+        {verification_url}
+
+        This link will expire in 24 hours.
+
+        If you didn't create this account, please ignore this email.
+
+        Best regards,
+        SmartGrader Team
+        """
+
+        # Send email
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            fail_silently=False,
+        )
+        return True
+    except Exception as e:
+        print(f"Error sending verification email: {str(e)}")
+        return False
+
 
 def landing(request):
     return render(request, 'accounts/landing.html')
@@ -60,25 +109,34 @@ def register_user(request):
         if User.objects.filter(email=email).exists():
             return JsonResponse({"error": "Email already registered"}, status=400)
 
-        # Create user with first and last name
+        # Create user with first and last name (inactive until email verification)
         user = User.objects.create_user(
             email=email,
             password=password,
             first_name=first_name,
-            last_name=last_name
+            last_name=last_name,
+            is_active=False  # Require email verification
         )
 
         # Create profile with the selected role
         # Note: Signal auto-creation is disabled to allow role selection
         profile = Profile.objects.create(user=user, role=role)
 
-        login(request, user)  # Auto login after registration
+        # Send verification email
+        email_sent = send_verification_email(user, request)
+
+        if not email_sent:
+            # If email fails, still create account but warn user
+            return JsonResponse({
+                "message": "Account created but verification email failed to send. Please contact support.",
+                "email": user.email,
+                "requires_verification": True
+            }, status=201)
 
         return JsonResponse({
-            "message": "User created successfully",
+            "message": "Account created! Please check your email to verify your account.",
             "email": user.email,
-            "name": f"{user.first_name} {user.last_name}",
-            "role": profile.role
+            "requires_verification": True
         }, status=201)
 
     except Exception as e:
@@ -101,6 +159,12 @@ def login_user(request):
         if user is None:
             return JsonResponse({"error": "Invalid credentials"}, status=400)
 
+        # Check if user has verified their email
+        if not user.is_active:
+            return JsonResponse({
+                "error": "Please verify your email address before logging in. Check your inbox for the verification link."
+            }, status=403)
+
         login(request, user)
 
         # Get or create user profile
@@ -116,7 +180,80 @@ def login_user(request):
         return JsonResponse({"error": f"Login failed: {str(e)}"}, status=500)
 
 
+def verify_email(request, token):
+    """Verify user email with token"""
+    try:
+        # Find token
+        verification_token = EmailVerificationToken.objects.get(token=token)
+
+        # Check if token is expired
+        if verification_token.is_expired():
+            return render(request, 'accounts/verification_result.html', {
+                'success': False,
+                'message': 'This verification link has expired. Please contact support to resend a verification email.'
+            })
+
+        # Activate user
+        user = verification_token.user
+        user.is_active = True
+        user.save()
+
+        # Delete used token
+        verification_token.delete()
+
+        return render(request, 'accounts/verification_result.html', {
+            'success': True,
+            'message': 'Email verified successfully! You can now log in to your account.'
+        })
+
+    except EmailVerificationToken.DoesNotExist:
+        return render(request, 'accounts/verification_result.html', {
+            'success': False,
+            'message': 'Invalid verification link. Please check your email or contact support.'
+        })
+
+
 @login_required
+def profile_page(request):
+    """Display user profile information"""
+    user = request.user
+    profile = Profile.objects.get(user=user)
+
+    # Get user statistics
+    if profile.role == 'teacher':
+        # Teacher stats
+        total_tests = Test.objects.filter(created_by=user).count()
+        total_submissions = Submission.objects.filter(test__created_by=user).count()
+        total_students = TestEnrollment.objects.filter(test__created_by=user).values('student').distinct().count()
+    else:
+        # Student stats
+        total_tests = TestEnrollment.objects.filter(student=user).count()
+        total_submissions = Submission.objects.filter(student_user=user).count()
+        avg_score = 0
+        if total_submissions > 0:
+            submissions = Submission.objects.filter(student_user=user, processed=True)
+            if submissions.exists():
+                avg_score = sum(s.percentage for s in submissions) / submissions.count()
+
+    context = {
+        'user': user,
+        'profile': profile,
+    }
+
+    if profile.role == 'teacher':
+        context['total_tests'] = total_tests
+        context['total_submissions'] = total_submissions
+        context['total_students'] = total_students
+    else:
+        context['total_tests'] = total_tests
+        context['total_submissions'] = total_submissions
+        context['avg_score'] = round(avg_score, 1) if total_submissions > 0 else 0
+
+    return render(request, 'accounts/profile.html', context)
+
+
+@login_required
+@teacher_required
 def test_generator_page(request):
     """Render the test generator page"""
     return render(request, 'accounts/test_generator.html')
@@ -124,6 +261,7 @@ def test_generator_page(request):
 
 @csrf_exempt
 @login_required
+@teacher_required
 def create_test(request):
     """API endpoint to create a new test"""
     if request.method != "POST":
@@ -233,7 +371,120 @@ def create_test(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+@csrf_exempt
 @login_required
+@teacher_required
+def ai_generate_questions(request):
+    """Generate test questions using AI (Claude API)"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=400)
+
+    try:
+        import anthropic
+    except ImportError:
+        return JsonResponse({
+            "error": "AI generation requires the 'anthropic' package. Install it with: pip install anthropic"
+        }, status=500)
+
+    try:
+        data = json.loads(request.body)
+
+        topic = data.get("topic", "").strip()
+        num_questions = data.get("num_questions", 10)
+        num_options = data.get("num_options", 5)
+        difficulty = data.get("difficulty", "medium")
+
+        if not topic:
+            return JsonResponse({"error": "Topic is required"}, status=400)
+
+        if num_questions < 1 or num_questions > 50:
+            return JsonResponse({"error": "Number of questions must be between 1 and 50"}, status=400)
+
+        # Get API key from environment variable
+        api_key = settings.ANTHROPIC_API_KEY
+        if not api_key:
+            return JsonResponse({
+                "error": "ANTHROPIC_API_KEY environment variable not set. Please configure your API key."
+            }, status=500)
+
+        # Initialize Anthropic client
+        client = anthropic.Anthropic(api_key=api_key)
+
+        # Create prompt for Claude
+        option_letters = ['A', 'B', 'C', 'D', 'E'][:num_options]
+        prompt = f"""Generate {num_questions} multiple-choice questions about: {topic}
+
+Difficulty level: {difficulty}
+Number of options per question: {num_options} ({', '.join(option_letters)})
+
+Format each question as a JSON object with this exact structure:
+{{
+    "question": "The question text",
+    "options": ["Option A text", "Option B text", "Option C text"{', "Option D text"' if num_options >= 4 else ''}{', "Option E text"' if num_options >= 5 else ''}],
+    "correct_answer": 0
+}}
+
+Where correct_answer is the index (0-{num_options-1}) of the correct option.
+
+Return a JSON array of {num_questions} questions. Make the questions educational, clear, and appropriately challenging for {difficulty} level.
+Ensure each question tests understanding of {topic}."""
+
+        # Call Claude API
+        # Using claude-3-5-haiku-20241022 (fast and cost-effective for question generation)
+        message = client.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=4000,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+
+        # Parse response
+        response_text = message.content[0].text
+
+        # Try to extract JSON from response
+        # Claude might wrap it in markdown code blocks
+        if "```json" in response_text:
+            response_text = response_text.split("```json")[1].split("```")[0].strip()
+        elif "```" in response_text:
+            response_text = response_text.split("```")[1].split("```")[0].strip()
+
+        questions = json.loads(response_text)
+
+        # Validate and clean the questions
+        if not isinstance(questions, list):
+            return JsonResponse({"error": "Invalid response format from AI"}, status=500)
+
+        validated_questions = []
+        for q in questions:
+            if not isinstance(q, dict):
+                continue
+            if "question" not in q or "options" not in q or "correct_answer" not in q:
+                continue
+            if not isinstance(q["options"], list) or len(q["options"]) != num_options:
+                continue
+            if not isinstance(q["correct_answer"], int) or q["correct_answer"] < 0 or q["correct_answer"] >= num_options:
+                continue
+
+            validated_questions.append(q)
+
+        if len(validated_questions) == 0:
+            return JsonResponse({"error": "No valid questions generated"}, status=500)
+
+        return JsonResponse({
+            "success": True,
+            "questions": validated_questions,
+            "count": len(validated_questions)
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON in request"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": f"AI generation failed: {str(e)}"}, status=500)
+
+
+@login_required
+@teacher_required
 def test_list_page(request):
     """Render the test list page - show only user's tests with stats"""
     tests = Test.objects.filter(created_by=request.user).order_by('-created_at')
@@ -260,6 +511,7 @@ def test_list_page(request):
 
 
 @login_required
+@teacher_required
 def test_detail_page(request, test_id):
     """Render the test detail page"""
     try:
@@ -271,6 +523,7 @@ def test_detail_page(request, test_id):
 
 @csrf_exempt
 @login_required
+@teacher_required
 def generate_pdf_api(request, test_id):
     """Generate PDF for an existing test"""
     if request.method != "POST":
@@ -301,6 +554,7 @@ def generate_pdf_api(request, test_id):
 
 @csrf_exempt
 @login_required
+@teacher_required
 def delete_test_api(request, test_id):
     """Delete a test"""
     if request.method != "DELETE" and request.method != "POST":
@@ -329,6 +583,7 @@ def delete_test_api(request, test_id):
 
 @csrf_exempt
 @login_required
+@teacher_required
 def duplicate_test_api(request, test_id):
     """Duplicate an existing test"""
     if request.method != "POST":
@@ -366,6 +621,7 @@ def logout_view(request):
 
 @csrf_exempt
 @login_required
+@teacher_required
 def upload_submissions(request, test_id):
     """Upload and process student submissions (images or zip file)"""
     if request.method != "POST":
@@ -547,6 +803,7 @@ def process_single_submission(test, image_path, filename, correct_answers):
 
 
 @login_required
+@teacher_required
 def get_test_submissions(request, test_id):
     """Get all submissions for a test"""
     try:
@@ -575,6 +832,7 @@ def get_test_submissions(request, test_id):
 
 
 @login_required
+@teacher_required
 def submission_detail_page(request, test_id, submission_id):
     """View detailed submission with answer breakdown"""
     try:
@@ -613,6 +871,7 @@ def submission_detail_page(request, test_id, submission_id):
 
 @csrf_exempt
 @login_required
+@teacher_required
 def update_submission_name(request, test_id, submission_id):
     """Update the student name on a submission"""
     if request.method != 'POST':
@@ -659,6 +918,7 @@ def update_submission_name(request, test_id, submission_id):
 
 @csrf_exempt
 @login_required
+@teacher_required
 def update_test_name(request, test_id):
     """Update the test name/title"""
     if request.method != 'POST':
@@ -691,6 +951,7 @@ def update_test_name(request, test_id):
 
 
 @login_required
+@teacher_required
 def test_analytics_api(request, test_id):
     """Get analytics for a test"""
     try:
@@ -749,6 +1010,7 @@ import csv
 from django.http import HttpResponse
 
 @login_required
+@teacher_required
 def export_results_csv(request, test_id):
     """Export test results to CSV"""
     try:
@@ -828,18 +1090,9 @@ def export_results_csv(request, test_id):
 # ============================================
 
 @login_required
+@student_required
 def student_dashboard(request):
     """Student dashboard showing enrolled tests and results"""
-    try:
-        profile = Profile.objects.get(user=request.user)
-        
-        # Redirect teachers to teacher portal
-        if profile.role == 'teacher':
-            return redirect('test-list')
-    except Profile.DoesNotExist:
-        # Create profile if it doesn't exist (default is student)
-        profile = Profile.objects.create(user=request.user, role='student')
-    
     # Get enrolled tests with their submissions
     enrollments = TestEnrollment.objects.filter(student=request.user).select_related('test')
     
@@ -869,6 +1122,7 @@ def student_dashboard(request):
 
 @csrf_exempt
 @login_required
+@student_required
 def enroll_in_test(request):
     """Enroll a student in a test using enrollment code"""
     if request.method != 'POST':
@@ -908,6 +1162,7 @@ def enroll_in_test(request):
 
 
 @login_required
+@student_required
 def student_test_result(request, test_id):
     """View detailed results for a specific test"""
     try:
@@ -941,7 +1196,7 @@ def student_test_result(request, test_id):
             student_answer = submission.answers[i] if i < len(submission.answers) else None
             correct_answer = question['correct_answer']
             is_correct = student_answer == correct_answer
-            
+
             answer_details.append({
                 'question_num': i + 1,
                 'question_text': question['question'],
@@ -950,13 +1205,63 @@ def student_test_result(request, test_id):
                 'correct_answer': correct_answer,
                 'is_correct': is_correct
             })
-        
+
+        # Calculate performance analysis
+        all_submissions = Submission.objects.filter(test=test, processed=True)
+        analysis = None
+
+        if all_submissions.count() > 0:
+            # Class statistics
+            class_percentages = [s.percentage for s in all_submissions]
+            class_average = sum(class_percentages) / len(class_percentages)
+
+            # Student ranking
+            submissions_sorted = sorted(all_submissions, key=lambda s: s.percentage, reverse=True)
+            student_rank = next((i + 1 for i, s in enumerate(submissions_sorted) if s.id == submission.id), None)
+
+            # Performance vs class average
+            performance_diff = submission.percentage - class_average
+
+            # Identify strengths and weaknesses
+            correct_count = sum(1 for detail in answer_details if detail['is_correct'])
+            incorrect_count = len(answer_details) - correct_count
+
+            # Performance level
+            if submission.percentage >= 90:
+                performance_level = "Excellent"
+                performance_message = "Outstanding performance! Keep up the great work."
+            elif submission.percentage >= 80:
+                performance_level = "Very Good"
+                performance_message = "Great job! You're performing well above average."
+            elif submission.percentage >= 70:
+                performance_level = "Good"
+                performance_message = "Good work! A bit more practice and you'll excel."
+            elif submission.percentage >= 60:
+                performance_level = "Satisfactory"
+                performance_message = "You're on the right track. Focus on areas that need improvement."
+            else:
+                performance_level = "Needs Improvement"
+                performance_message = "Don't be discouraged! Review the material and try again."
+
+            analysis = {
+                'class_average': round(class_average, 1),
+                'student_rank': student_rank,
+                'total_students': all_submissions.count(),
+                'performance_diff': round(performance_diff, 1),
+                'performance_level': performance_level,
+                'performance_message': performance_message,
+                'correct_count': correct_count,
+                'incorrect_count': incorrect_count,
+                'above_average': performance_diff > 0
+            }
+
         context = {
             'test': test,
             'submission': submission,
-            'answer_details': answer_details
+            'answer_details': answer_details,
+            'analysis': analysis
         }
-        
+
         return render(request, 'accounts/student_result.html', context)
         
     except Test.DoesNotExist:

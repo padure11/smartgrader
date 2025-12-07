@@ -1,8 +1,11 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
 import secrets
 import string
+import uuid
 
 
 class CustomUserManager(BaseUserManager):
@@ -129,5 +132,40 @@ class Submission(models.Model):
             return self.last_name
         return "Unknown"
 
+    @property
+    def grade(self):
+        """Calculate letter grade based on percentage"""
+        if self.percentage >= 90:
+            return 'A'
+        elif self.percentage >= 80:
+            return 'B'
+        elif self.percentage >= 70:
+            return 'C'
+        elif self.percentage >= 60:
+            return 'D'
+        else:
+            return 'F'
+
     def __str__(self):
         return f"{self.full_name} - {self.test.title} - {self.score}/{self.total_questions}"
+
+
+class EmailVerificationToken(models.Model):
+    """Token for email verification during registration"""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='verification_tokens')
+    token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        # Set expiration to 24 hours from creation
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(hours=24)
+        super().save(*args, **kwargs)
+
+    def is_expired(self):
+        """Check if token has expired"""
+        return timezone.now() > self.expires_at
+
+    def __str__(self):
+        return f"Verification token for {self.user.email}"

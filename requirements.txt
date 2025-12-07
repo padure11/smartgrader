@@ -13,3 +13,4 @@ reportlab==4.4.5
 sqlparse==0.5.4
 typing_extensions==4.15.0
 tzdata==2025.2
+pytesseract-0.3.13
