@@ -46,8 +46,9 @@ def register_user(request):
 
         email = data.get("email")
         password = data.get("password")
-        first_name = data.get("first_name", "").strip()
-        last_name = data.get("last_name", "").strip()
+        # Handle None values from JSON null
+        first_name = (data.get("first_name") or "").strip()
+        last_name = (data.get("last_name") or "").strip()
         role = data.get("role", "student")  # Default to student if not provided
 
         if not email or not password:
@@ -506,9 +507,9 @@ def process_single_submission(test, image_path, filename, correct_answers):
             image_content = f.read()
         saved_path = default_storage.save(submission_image_path, ContentFile(image_content))
 
-        # Extract student info from OCR
-        first_name = student_info.get('first_name', '').strip()
-        last_name = student_info.get('last_name', '').strip()
+        # Extract student info from OCR (handle None values)
+        first_name = (student_info.get('first_name') or '').strip()
+        last_name = (student_info.get('last_name') or '').strip()
 
         # Try to match with enrolled student
         student_user = match_submission_to_student(None, test, first_name, last_name)
@@ -620,8 +621,9 @@ def update_submission_name(request, test_id, submission_id):
         submission = Submission.objects.get(id=submission_id, test=test)
 
         data = json.loads(request.body)
-        first_name = data.get('first_name', '').strip()
-        last_name = data.get('last_name', '').strip()
+        # Handle None values from JSON null
+        first_name = (data.get('first_name') or '').strip()
+        last_name = (data.get('last_name') or '').strip()
 
         if not first_name or not last_name:
             return JsonResponse({'error': 'Both first name and last name are required'}, status=400)
