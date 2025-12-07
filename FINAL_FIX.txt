@@ -1,0 +1,70 @@
+===============================================================================
+FINAL FIX - Two Simple Steps
+===============================================================================
+
+You have TWO issues:
+
+1. Missing django_session table (and other Django built-in tables)
+2. Profile creation race condition
+
+===============================================================================
+SOLUTION:
+===============================================================================
+
+Step 1: Create ALL database tables
+-----------------------------------
+
+Run this command to create all Django tables (sessions, admin, etc.):
+
+    cd C:\!c++\tst\smartgrader\smartgrader_app
+    python manage.py migrate --run-syncdb
+
+The --run-syncdb flag forces Django to create any missing tables.
+
+
+Step 2: Test registration and login
+-----------------------------------
+
+Now try registering a new account. The profile race condition has been fixed
+in the code (using get_or_create instead of create).
+
+
+===============================================================================
+IF STEP 1 GIVES ERRORS:
+===============================================================================
+
+If you still get "duplicate column" errors, use the nuclear option:
+
+    cd C:\!c++\tst\smartgrader\smartgrader_app
+
+    # Delete the database
+    del db.sqlite3
+
+    # Recreate everything
+    python manage.py migrate
+
+    # Create admin user (optional)
+    python manage.py createsuperuser
+
+
+===============================================================================
+WHAT WAS FIXED:
+===============================================================================
+
+✓ Changed Profile.objects.create() to Profile.objects.get_or_create()
+  This prevents the "UNIQUE constraint failed" error
+
+✓ Added --run-syncdb flag to create missing session tables
+
+
+===============================================================================
+AFTER THIS WORKS:
+===============================================================================
+
+You'll have:
+- Role selection when registering (Teacher/Student)
+- Student enrollment with 8-character codes
+- Student dashboard to view test results
+- Role-based navigation
+
+===============================================================================
