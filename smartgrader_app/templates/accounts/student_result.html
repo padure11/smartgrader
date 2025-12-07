@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ test.title }} - Results{% endblock %}
+
+{% block content %}
+<style>
+    .result-container {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+
+    .result-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 40px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        text-align: center;
+    }
+
+    .result-header h1 {
+        color: white;
+        margin: 0 0 10px 0;
+        font-size: 28px;
+        font-weight: 700;
+    }
+
+    .result-header p {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 16px;
+        margin: 0;
+    }
+
+    .score-summary {
+        background: #2a2a2a;
+        border: 1px solid #3a3a3a;
+        padding: 30px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+    }
+
+    .score-main {
+        text-align: center;
+        margin-bottom: 25px;
+    }
+
+    .score-value {
+        font-size: 64px;
+        font-weight: 700;
+        color: #69c8a0;
+        margin: 0;
+    }
+
+    .score-percentage {
+        font-size: 32px;
+        color: #667eea;
+        margin: 10px 0;
+    }
+
+    .score-grade {
+        display: inline-block;
+        padding: 10px 30px;
+        background: #667eea;
+        color: white;
+        border-radius: 6px;
+        font-size: 24px;
+        font-weight: 700;
+        margin-top: 10px;
+    }
+
+    .score-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 25px;
+        padding-top: 25px;
+        border-top: 1px solid #3a3a3a;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-label {
+        color: #999;
+        font-size: 14px;
+        margin-bottom: 5px;
+    }
+
+    .stat-value {
+        color: #fff;
+        font-size: 24px;
+        font-weight: 600;
+    }
+
+    .answers-section h2 {
+        color: #fff;
+        margin-bottom: 20px;
+        font-size: 24px;
+        font-weight: 600;
+    }
+
+    .answer-card {
+        background: #2a2a2a;
+        border: 1px solid #3a3a3a;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+    }
+
+    .answer-card.correct {
+        border-left: 4px solid #28a745;
+    }
+
+    .answer-card.incorrect {
+        border-left: 4px solid #dc3545;
+    }
+
+    .question-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+
+    .question-number {
+        color: #667eea;
+        font-weight: 600;
+        font-size: 16px;
+    }
+
+    .answer-status {
+        padding: 5px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .status-correct {
+        background: #28a745;
+        color: white;
+    }
+
+    .status-incorrect {
+        background: #dc3545;
+        color: white;
+    }
+
+    .question-text {
+        color: #fff;
+        font-size: 16px;
+        margin-bottom: 15px;
+        line-height: 1.5;
+    }
+
+    .options-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .option-item {
+        padding: 10px 15px;
+        margin-bottom: 8px;
+        background: #1c1c1c;
+        border-radius: 6px;
+        color: #ccc;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .option-item.student-answer {
+        background: #3a4a5a;
+        border: 2px solid #667eea;
+    }
+
+    .option-item.correct-answer {
+        background: #2d4a2d;
+        border: 2px solid #28a745;
+    }
+
+    .option-item.student-answer.incorrect {
+        background: #4a2d2d;
+        border: 2px solid #dc3545;
+    }
+
+    .option-label {
+        font-weight: 600;
+        color: #fff;
+        min-width: 30px;
+    }
+
+    .option-badge {
+        margin-left: auto;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .badge-your-answer {
+        background: #667eea;
+        color: white;
+    }
+
+    .badge-correct {
+        background: #28a745;
+        color: white;
+    }
+
+    .btn-back {
+        display: inline-block;
+        padding: 12px 24px;
+        background: #444;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        transition: all 0.2s;
+        margin-top: 30px;
+    }
+
+    .btn-back:hover {
+        background: #555;
+        transform: translateY(-1px);
+    }
+</style>
+
+<div class="result-container">
+    <div class="result-header">
+        <h1>{{ test.title }}</h1>
+        <p>Test Results</p>
+    </div>
+
+    <div class="score-summary">
+        <div class="score-main">
+            <h2 class="score-value">{{ submission.score }}/{{ test.num_questions }}</h2>
+            <div class="score-percentage">{{ submission.percentage|floatformat:1 }}%</div>
+            <span class="score-grade">{{ submission.grade }}</span>
+        </div>
+
+        <div class="score-stats">
+            <div class="stat-item">
+                <div class="stat-label">Correct Answers</div>
+                <div class="stat-value" style="color: #28a745;">{{ submission.score }}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Incorrect Answers</div>
+                <div class="stat-value" style="color: #dc3545;">{{ test.num_questions|add:"-"|add:submission.score }}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Total Questions</div>
+                <div class="stat-value">{{ test.num_questions }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="answers-section">
+        <h2>Answer Review</h2>
+
+        {% for detail in answer_details %}
+        <div class="answer-card {% if detail.is_correct %}correct{% else %}incorrect{% endif %}">
+            <div class="question-header">
+                <span class="question-number">Question {{ detail.question_num }}</span>
+                <span class="answer-status {% if detail.is_correct %}status-correct{% else %}status-incorrect{% endif %}">
+                    {% if detail.is_correct %}✓ Correct{% else %}✗ Incorrect{% endif %}
+                </span>
+            </div>
+
+            <p class="question-text">{{ detail.question_text }}</p>
+
+            <ul class="options-list">
+                {% for option in detail.options %}
+                <li class="option-item
+                    {% if forloop.counter0 == detail.student_answer %}student-answer {% if not detail.is_correct %}incorrect{% endif %}{% endif %}
+                    {% if forloop.counter0 == detail.correct_answer %}correct-answer{% endif %}">
+                    <span class="option-label">{{ forloop.counter0|add:1 }}.</span>
+                    <span>{{ option }}</span>
+                    {% if forloop.counter0 == detail.student_answer %}
+                        <span class="option-badge badge-your-answer">Your Answer</span>
+                    {% endif %}
+                    {% if forloop.counter0 == detail.correct_answer %}
+                        <span class="option-badge badge-correct">Correct Answer</span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+
+    <a href="{% url 'student-dashboard' %}" class="btn-back">← Back to Dashboard</a>
+</div>
+
+{% endblock %}

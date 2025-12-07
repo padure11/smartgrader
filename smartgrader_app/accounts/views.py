@@ -45,6 +45,7 @@ def register_user(request):
 
     email = data.get("email")
     password = data.get("password")
+    role = data.get("role", "student")  # Default to student if not provided
 
     if not email or not password:
         return JsonResponse({"error": "Email and password required"}, status=400)
@@ -53,6 +54,10 @@ def register_user(request):
         return JsonResponse({"error": "Email already registered"}, status=400)
 
     user = User.objects.create_user(email=email, password=password)
+
+    # Create profile with the selected role
+    Profile.objects.create(user=user, role=role)
+
     login(request, user)  # Auto login after registration
 
     return JsonResponse({"message": "User created successfully", "email": user.email}, status=201)
@@ -75,7 +80,14 @@ def login_user(request):
 
     login(request, user)
 
-    return JsonResponse({"message": "Login successful", "email": user.email})
+    # Get or create user profile
+    profile, created = Profile.objects.get_or_create(user=user, defaults={'role': 'student'})
+
+    return JsonResponse({
+        "message": "Login successful",
+        "email": user.email,
+        "role": profile.role
+    })
 
 
 @login_required

@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Student Dashboard - SmartGrader{% endblock %}
+
+{% block content %}
+<style>
+    .student-container {
+        max-width: 1000px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+
+    .dashboard-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 40px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        text-align: center;
+    }
+
+    .dashboard-header h1 {
+        color: white;
+        margin: 0 0 10px 0;
+        font-size: 32px;
+        font-weight: 700;
+    }
+
+    .dashboard-header p {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 16px;
+        margin: 0;
+    }
+
+    .enrollment-section {
+        background: #2a2a2a;
+        border: 1px solid #3a3a3a;
+        padding: 30px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+    }
+
+    .enrollment-section h2 {
+        color: #fff;
+        margin: 0 0 20px 0;
+        font-size: 22px;
+        font-weight: 600;
+    }
+
+    .enroll-form {
+        display: flex;
+        gap: 15px;
+        align-items: flex-start;
+    }
+
+    .enroll-form input {
+        flex: 1;
+        padding: 12px 16px;
+        background: #1c1c1c;
+        border: 1px solid #444;
+        border-radius: 6px;
+        color: #fff;
+        font-size: 16px;
+        font-family: monospace;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+    }
+
+    .enroll-form input:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .enroll-form button {
+        padding: 12px 30px;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .enroll-form button:hover {
+        background: #5568d3;
+        transform: translateY(-1px);
+    }
+
+    .enroll-hint {
+        margin-top: 10px;
+        color: #999;
+        font-size: 14px;
+    }
+
+    .tests-section h2 {
+        color: #fff;
+        margin-bottom: 20px;
+        font-size: 24px;
+        font-weight: 600;
+    }
+
+    .test-card {
+        background: #2a2a2a;
+        border: 1px solid #3a3a3a;
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 20px;
+        transition: all 0.2s;
+    }
+
+    .test-card:hover {
+        border-color: #667eea;
+        transform: translateY(-2px);
+    }
+
+    .test-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+
+    .test-title {
+        color: #fff;
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .test-status {
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .status-completed {
+        background: #28a745;
+        color: white;
+    }
+
+    .status-pending {
+        background: #ffc107;
+        color: #000;
+    }
+
+    .status-enrolled {
+        background: #667eea;
+        color: white;
+    }
+
+    .test-meta {
+        display: flex;
+        gap: 20px;
+        margin: 15px 0;
+        color: #999;
+        font-size: 14px;
+    }
+
+    .test-meta span {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .test-description {
+        color: #ccc;
+        font-size: 14px;
+        margin: 10px 0;
+    }
+
+    .test-result {
+        margin-top: 15px;
+        padding: 15px;
+        background: #1c1c1c;
+        border-radius: 6px;
+        border-left: 3px solid #69c8a0;
+    }
+
+    .result-score {
+        font-size: 24px;
+        font-weight: 700;
+        color: #69c8a0;
+        margin-bottom: 5px;
+    }
+
+    .result-details {
+        color: #999;
+        font-size: 14px;
+    }
+
+    .btn-view-result {
+        margin-top: 15px;
+        padding: 10px 20px;
+        background: #69c8a0;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.2s;
+    }
+
+    .btn-view-result:hover {
+        background: #58b38e;
+        transform: translateY(-1px);
+    }
+
+    .no-tests {
+        text-align: center;
+        padding: 60px 20px;
+        color: #999;
+    }
+
+    .no-tests-icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+    }
+
+    .no-tests p {
+        font-size: 18px;
+        margin: 0;
+    }
+</style>
+
+<div class="student-container">
+    <div class="dashboard-header">
+        <h1>Student Dashboard</h1>
+        <p>Welcome, {{ student.email }}</p>
+    </div>
+
+    <div class="enrollment-section">
+        <h2>Enroll in a Test</h2>
+        <form class="enroll-form" id="enroll-form">
+            <input
+                type="text"
+                id="enrollment-code"
+                placeholder="Enter enrollment code"
+                maxlength="8"
+                autocomplete="off"
+                required
+            >
+            <button type="submit">Enroll</button>
+        </form>
+        <p class="enroll-hint">Enter the 8-character code provided by your teacher</p>
+    </div>
+
+    <div class="tests-section">
+        <h2>My Tests</h2>
+
+        {% if tests_data %}
+            {% for item in tests_data %}
+            <div class="test-card">
+                <div class="test-card-header">
+                    <h3 class="test-title">{{ item.test.title }}</h3>
+                    {% if item.has_result %}
+                        <span class="test-status status-completed">Graded</span>
+                    {% elif item.submission %}
+                        <span class="test-status status-pending">Submitted</span>
+                    {% else %}
+                        <span class="test-status status-enrolled">Enrolled</span>
+                    {% endif %}
+                </div>
+
+                {% if item.test.description %}
+                <p class="test-description">{{ item.test.description }}</p>
+                {% endif %}
+
+                <div class="test-meta">
+                    <span>📝 {{ item.test.num_questions }} questions</span>
+                    <span>📅 Enrolled {{ item.enrollment.enrolled_at|date:"M d, Y" }}</span>
+                </div>
+
+                {% if item.has_result %}
+                <div class="test-result">
+                    <div class="result-score">{{ item.submission.score }}/{{ item.test.num_questions }}</div>
+                    <div class="result-details">{{ item.submission.percentage|floatformat:1 }}% • {{ item.submission.grade }}</div>
+                    <a href="{% url 'student-test-result' item.test.id %}" class="btn-view-result">View Detailed Results</a>
+                </div>
+                {% elif item.submission %}
+                <div class="test-result" style="border-left-color: #ffc107;">
+                    <div class="result-details">Your submission is being processed. Check back later for results.</div>
+                </div>
+                {% else %}
+                <div class="test-result" style="border-left-color: #667eea;">
+                    <div class="result-details">Waiting for answer sheet to be uploaded and graded.</div>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="no-tests">
+                <div class="no-tests-icon">📚</div>
+                <p>You haven't enrolled in any tests yet</p>
+                <p style="color: #666; font-size: 14px; margin-top: 10px;">Use the enrollment form above to join a test</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('enroll-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const codeInput = document.getElementById('enrollment-code');
+    const code = codeInput.value.trim().toUpperCase();
+
+    if (!code) {
+        Toast.error('Error', 'Please enter an enrollment code');
+        return;
+    }
+
+    try {
+        const response = await fetch('{% url "enroll-in-test" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ enrollment_code: code })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            Toast.success('Success', data.message);
+            codeInput.value = '';
+            // Reload page after 1 second to show the new enrollment
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            Toast.error('Error', data.error || 'Failed to enroll');
+        }
+    } catch (error) {
+        Toast.error('Error', 'Network error. Please try again.');
+        console.error('Enrollment error:', error);
+    }
+});
+</script>
+{% endblock %}

@@ -212,7 +212,12 @@ document.getElementById('login-form').addEventListener('submit', async function(
             successDiv.textContent = 'Login successful! Redirecting...';
             successDiv.style.display = 'block';
             setTimeout(() => {
-                window.location.href = '/tests/';
+                // Redirect based on role
+                if (data.role === 'teacher') {
+                    window.location.href = '/tests/';
+                } else {
+                    window.location.href = '/student/';
+                }
             }, 1000);
         } else {
             errorDiv.textContent = data.error || 'Login failed';
