@@ -56,15 +56,16 @@ def register_user(request):
 
         user = User.objects.create_user(email=email, password=password)
 
-        # Create profile with the selected role (use get_or_create to avoid race conditions)
-        Profile.objects.get_or_create(user=user, defaults={'role': role})
+        # Create profile with the selected role
+        # Note: Signal auto-creation is disabled to allow role selection
+        profile = Profile.objects.create(user=user, role=role)
 
         login(request, user)  # Auto login after registration
 
         return JsonResponse({
             "message": "User created successfully",
             "email": user.email,
-            "role": role
+            "role": profile.role
         }, status=201)
 
     except Exception as e:
