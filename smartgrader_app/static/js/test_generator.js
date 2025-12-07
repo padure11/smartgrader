@@ -585,20 +585,30 @@ function updateQuestionNumbers() {
 
 // ============================================
 // AI QUESTION GENERATION
+
+// ============================================
+// AI QUESTION GENERATION
 // ============================================
 
-// Get elements
-const aiGenerateBtn = document.getElementById('ai-generate-btn');
-const aiModal = document.getElementById('ai-modal');
-const aiModalClose = document.getElementById('ai-modal-close');
-const aiCancel = document.getElementById('ai-cancel');
-const aiGenerate = document.getElementById('ai-generate');
-const aiError = document.getElementById('ai-error');
-const aiLoading = document.getElementById('ai-loading');
+document.addEventListener('DOMContentLoaded', function() {
+    // Get elements
+    const aiGenerateBtn = document.getElementById('ai-generate-btn');
+    const aiModal = document.getElementById('ai-modal');
+    const aiModalClose = document.getElementById('ai-modal-close');
+    const aiCancel = document.getElementById('ai-cancel');
+    const aiGenerate = document.getElementById('ai-generate');
+    const aiError = document.getElementById('ai-error');
+    const aiLoading = document.getElementById('ai-loading');
 
-// Open modal
-if (aiGenerateBtn) {
+    // Check if AI button exists
+    if (!aiGenerateBtn) {
+        console.log('AI Generate button not found - feature may not be available');
+        return;
+    }
+
+    // Open modal
     aiGenerateBtn.addEventListener('click', () => {
+        console.log('AI Generate button clicked');
         aiModal.style.display = 'flex';
         document.getElementById('ai-topic').value = '';
         document.getElementById('ai-num-questions').value = '10';
@@ -606,105 +616,102 @@ if (aiGenerateBtn) {
         aiError.style.display = 'none';
         aiLoading.style.display = 'none';
     });
-}
 
-// Close modal
-function closeAIModal() {
-    aiModal.style.display = 'none';
-}
+    // Close modal
+    function closeAIModal() {
+        aiModal.style.display = 'none';
+    }
 
-if (aiModalClose) {
-    aiModalClose.addEventListener('click', closeAIModal);
-}
+    if (aiModalClose) {
+        aiModalClose.addEventListener('click', closeAIModal);
+    }
 
-if (aiCancel) {
-    aiCancel.addEventListener('click', closeAIModal);
-}
+    if (aiCancel) {
+        aiCancel.addEventListener('click', closeAIModal);
+    }
 
-// Click outside to close
-if (aiModal) {
-    aiModal.addEventListener('click', (e) => {
-        if (e.target === aiModal) {
-            closeAIModal();
-        }
-    });
-}
+    // Click outside to close
+    if (aiModal) {
+        aiModal.addEventListener('click', (e) => {
+            if (e.target === aiModal) {
+                closeAIModal();
+            }
+        });
+    }
 
-// Generate questions
-if (aiGenerate) {
-    aiGenerate.addEventListener('click', async () => {
-        const topic = document.getElementById('ai-topic').value.trim();
-        const numQuestions = parseInt(document.getElementById('ai-num-questions').value);
-        const difficulty = document.getElementById('ai-difficulty').value;
-        const numOptions = parseInt(document.getElementById('num-options').value) || 5;
+    // Generate questions
+    if (aiGenerate) {
+        aiGenerate.addEventListener('click', async () => {
+            const topic = document.getElementById('ai-topic').value.trim();
+            const numQuestions = parseInt(document.getElementById('ai-num-questions').value);
+            const difficulty = document.getElementById('ai-difficulty').value;
+            const numOptions = parseInt(document.getElementById('num-options').value) || 5;
 
-        // Validation
-        if (!topic) {
-            aiError.textContent = 'Please enter a topic';
-            aiError.style.display = 'block';
-            return;
-        }
+            console.log('Generating questions:', { topic, numQuestions, difficulty, numOptions });
 
-        if (numQuestions < 1 || numQuestions > 50) {
-            aiError.textContent = 'Number of questions must be between 1 and 50';
-            aiError.style.display = 'block';
-            return;
-        }
-
-        // Show loading
-        aiError.style.display = 'none';
-        aiLoading.style.display = 'block';
-        aiGenerate.disabled = true;
-
-        try {
-            const response = await fetch('/accounts/api-ai-generate/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    topic,
-                    num_questions: numQuestions,
-                    num_options: numOptions,
-                    difficulty
-                })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to generate questions');
+            // Validation
+            if (!topic) {
+                aiError.textContent = 'Please enter a topic';
+                aiError.style.display = 'block';
+                return;
             }
 
-            // Add questions to the form
-            data.questions.forEach(q => {
-                addQuestion(q.question, q.options, q.correct_answer);
-            });
+            if (numQuestions < 1 || numQuestions > 50) {
+                aiError.textContent = 'Number of questions must be between 1 and 50';
+                aiError.style.display = 'block';
+                return;
+            }
 
-            // Close modal
-            closeAIModal();
+            // Show loading
+            aiError.style.display = 'none';
+            aiLoading.style.display = 'block';
+            aiGenerate.disabled = true;
 
-            // Show success message
-            showSuccess(`Successfully generated ${data.count} questions!`);
+            try {
+                const response = await fetch('/accounts/api-ai-generate/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        topic,
+                        num_questions: numQuestions,
+                        num_options: numOptions,
+                        difficulty
+                    })
+                });
 
-        } catch (error) {
-            aiError.textContent = error.message;
-            aiError.style.display = 'block';
-        } finally {
-            aiLoading.style.display = 'none';
-            aiGenerate.disabled = false;
-        }
-    });
-}
+                const data = await response.json();
 
-// Helper function to show success message
-function showSuccess(message) {
-    const successDiv = document.getElementById('success-message');
-    if (successDiv) {
-        successDiv.textContent = message;
-        successDiv.style.display = 'block';
-        setTimeout(() => {
-            successDiv.style.display = 'none';
-        }, 5000);
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to generate questions');
+                }
+
+                console.log('AI generated questions:', data);
+
+                // Add questions to the form
+                data.questions.forEach(q => {
+                    addQuestion(q.question, q.options, q.correct_answer);
+                });
+
+                // Close modal
+                closeAIModal();
+
+                // Show success message
+                if (typeof Toast !== 'undefined') {
+                    Toast.success('Success', `Successfully generated ${data.count} questions!`);
+                } else {
+                    alert(`Successfully generated ${data.count} questions!`);
+                }
+
+            } catch (error) {
+                console.error('AI generation error:', error);
+                aiError.textContent = error.message;
+                aiError.style.display = 'block';
+            } finally {
+                aiLoading.style.display = 'none';
+                aiGenerate.disabled = false;
+            }
+        });
     }
-}
+});
