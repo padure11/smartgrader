@@ -158,7 +158,7 @@
         <div id="error-message" class="error-message"></div>
         <div id="success-message" class="success-message"></div>
 
-        <form id="register-form">
+        <form id="register-form" method="post" action="javascript:void(0);">
             <div class="form-group">
                 <label for="role">I am a...</label>
                 <select id="role" name="role" required style="width: 100%; padding: 14px 16px; border: none; border-radius: 10px; font-size: 15px; background: rgba(255, 255, 255, 0.95); cursor: pointer;">
@@ -204,96 +204,109 @@
 </div>
 
 <script>
-document.getElementById('register-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const submitBtn = document.getElementById('submit-btn');
-    const errorDiv = document.getElementById('error-message');
-    const successDiv = document.getElementById('success-message');
-    
-    errorDiv.style.display = 'none';
-    successDiv.style.display = 'none';
+(function() {
+    'use strict';
 
-    const firstName = document.getElementById('first-name').value.trim();
-    const lastName = document.getElementById('last-name').value.trim();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const confirmPassword = document.getElementById('confirm-password').value;
-    const role = document.getElementById('role').value;
-
-    // Validate inputs
-    if (!firstName || !lastName) {
-        errorDiv.textContent = 'Please enter your first and last name';
-        errorDiv.style.display = 'block';
-        return;
-    }
-
-    if (password.length < 8) {
-        errorDiv.textContent = 'Password must be at least 8 characters long';
-        errorDiv.style.display = 'block';
-        return;
-    }
-
-    if (password !== confirmPassword) {
-        errorDiv.textContent = 'Passwords do not match';
-        errorDiv.style.display = 'block';
-        return;
-    }
-
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Creating Account...';
-
-    try {
-        const response = await fetch('/accounts/api-register/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                email,
-                password,
-                role,
-                first_name: firstName,
-                last_name: lastName
-            })
-        });
-        
-        const data = await response.json();
-
-        if (response.ok) {
-            if (data.requires_verification) {
-                // Show verification message
-                successDiv.textContent = data.message;
-                successDiv.style.display = 'block';
-
-                // Redirect to login after 3 seconds
-                setTimeout(() => {
-                    window.location.href = '/login/';
-                }, 3000);
-            } else {
-                // Legacy: if no verification required (shouldn't happen anymore)
-                successDiv.textContent = 'Account created successfully! Redirecting...';
-                successDiv.style.display = 'block';
-                setTimeout(() => {
-                    if (role === 'teacher') {
-                        window.location.href = '/tests/';
-                    } else {
-                        window.location.href = '/student/';
-                    }
-                }, 1000);
-            }
-        } else {
-            errorDiv.textContent = data.error || 'Registration failed';
-            errorDiv.style.display = 'block';
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Create Account';
+    document.addEventListener('DOMContentLoaded', function() {
+        const registerForm = document.getElementById('register-form');
+        if (!registerForm) {
+            console.error('Register form not found');
+            return;
         }
-    } catch (error) {
-        errorDiv.textContent = 'An error occurred. Please try again.';
-        errorDiv.style.display = 'block';
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Create Account';
-    }
-});
+
+        registerForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('submit-btn');
+            const errorDiv = document.getElementById('error-message');
+            const successDiv = document.getElementById('success-message');
+
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+
+            const firstName = document.getElementById('first-name').value.trim();
+            const lastName = document.getElementById('last-name').value.trim();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const role = document.getElementById('role').value;
+
+            // Validate inputs
+            if (!firstName || !lastName) {
+                errorDiv.textContent = 'Please enter your first and last name';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (password.length < 8) {
+                errorDiv.textContent = 'Password must be at least 8 characters long';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                errorDiv.textContent = 'Passwords do not match';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creating Account...';
+
+            try {
+                const response = await fetch('/accounts/api-register/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email,
+                        password,
+                        role,
+                        first_name: firstName,
+                        last_name: lastName
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    if (data.requires_verification) {
+                        // Show verification message
+                        successDiv.textContent = data.message;
+                        successDiv.style.display = 'block';
+
+                        // Redirect to login after 3 seconds
+                        setTimeout(() => {
+                            window.location.href = '/login/';
+                        }, 3000);
+                    } else {
+                        // Legacy: if no verification required (shouldn't happen anymore)
+                        successDiv.textContent = 'Account created successfully! Redirecting...';
+                        successDiv.style.display = 'block';
+                        setTimeout(() => {
+                            if (role === 'teacher') {
+                                window.location.href = '/tests/';
+                            } else {
+                                window.location.href = '/student/';
+                            }
+                        }, 1000);
+                    }
+                } else {
+                    errorDiv.textContent = data.error || 'Registration failed';
+                    errorDiv.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Create Account';
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                errorDiv.textContent = 'An error occurred. Please try again.';
+                errorDiv.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Create Account';
+            }
+        });
+    });
+})();
 </script>
 {% endblock %}

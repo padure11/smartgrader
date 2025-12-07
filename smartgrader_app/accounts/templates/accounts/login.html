@@ -158,7 +158,7 @@
         <div id="error-message" class="error-message"></div>
         <div id="success-message" class="success-message"></div>
 
-        <form id="login-form">
+        <form id="login-form" method="post" action="javascript:void(0);">
             <div class="form-group">
                 <label for="email">Email Address</label>
                 <input type="email" id="email" name="email" placeholder="your@email.com" required>
@@ -181,56 +181,69 @@
 </div>
 
 <script>
-document.getElementById('login-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const submitBtn = document.getElementById('submit-btn');
-    const errorDiv = document.getElementById('error-message');
-    const successDiv = document.getElementById('success-message');
-    
-    errorDiv.style.display = 'none';
-    successDiv.style.display = 'none';
-    
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Logging in...';
-    
-    try {
-        const response = await fetch('/accounts/api-login/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email, password })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            successDiv.textContent = 'Login successful! Redirecting...';
-            successDiv.style.display = 'block';
-            setTimeout(() => {
-                // Redirect based on role
-                if (data.role === 'teacher') {
-                    window.location.href = '/tests/';
-                } else {
-                    window.location.href = '/student/';
-                }
-            }, 1000);
-        } else {
-            errorDiv.textContent = data.error || 'Login failed';
-            errorDiv.style.display = 'block';
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Login';
+(function() {
+    'use strict';
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const loginForm = document.getElementById('login-form');
+        if (!loginForm) {
+            console.error('Login form not found');
+            return;
         }
-    } catch (error) {
-        errorDiv.textContent = 'An error occurred. Please try again.';
-        errorDiv.style.display = 'block';
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Login';
-    }
-});
+
+        loginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('submit-btn');
+            const errorDiv = document.getElementById('error-message');
+            const successDiv = document.getElementById('success-message');
+
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Logging in...';
+
+            try {
+                const response = await fetch('/accounts/api-login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    successDiv.textContent = 'Login successful! Redirecting...';
+                    successDiv.style.display = 'block';
+                    setTimeout(() => {
+                        // Redirect based on role
+                        if (data.role === 'teacher') {
+                            window.location.href = '/tests/';
+                        } else {
+                            window.location.href = '/student/';
+                        }
+                    }, 1000);
+                } else {
+                    errorDiv.textContent = data.error || 'Login failed';
+                    errorDiv.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Login';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                errorDiv.textContent = 'An error occurred. Please try again.';
+                errorDiv.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Login';
+            }
+        });
+    });
+})();
 </script>
 {% endblock %}
