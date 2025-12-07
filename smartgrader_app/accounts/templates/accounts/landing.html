@@ -14,8 +14,18 @@
             with advanced OMR technology and PDF generation.
         </p>
         <div class="hero-buttons">
-            <a href="/test-generator/" class="btn btn-primary">Create Your First Test</a>
-            <a href="/tests/" class="btn btn-secondary">View My Tests</a>
+            {% if user.is_authenticated %}
+                {% if user_profile and user_profile.role == 'teacher' %}
+                    <a href="/test-generator/" class="btn btn-primary">Create Your First Test</a>
+                    <a href="/tests/" class="btn btn-secondary">View My Tests</a>
+                {% else %}
+                    <a href="/student/" class="btn btn-primary">View My Tests</a>
+                    <a href="/student/" class="btn btn-secondary">My Dashboard</a>
+                {% endif %}
+            {% else %}
+                <a href="/register/" class="btn btn-primary">Sign Up</a>
+                <a href="/login/" class="btn btn-secondary">Login</a>
+            {% endif %}
         </div>
     </div>
     <div class="hero-image">
@@ -91,7 +101,17 @@
 
 <div class="cta-section">
     <h2>Ready to Get Started?</h2>
-    <p>Create your first test in under 5 minutes</p>
-    <a href="/test-generator/" class="btn btn-large">Create Test Now</a>
+    {% if user.is_authenticated %}
+        {% if user_profile and user_profile.role == 'teacher' %}
+            <p>Create your first test in under 5 minutes</p>
+            <a href="/test-generator/" class="btn btn-large">Create Test Now</a>
+        {% else %}
+            <p>View your enrolled tests and results</p>
+            <a href="/student/" class="btn btn-large">Go to Dashboard</a>
+        {% endif %}
+    {% else %}
+        <p>Create your first test in under 5 minutes</p>
+        <a href="/register/" class="btn btn-large">Sign Up Now</a>
+    {% endif %}
 </div>
 {% endblock %}

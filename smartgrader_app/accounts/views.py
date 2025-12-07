@@ -6,6 +6,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from .models import Test, Submission, TestEnrollment, Profile
+from .decorators import teacher_required, student_required
 import json
 import os
 import sys
@@ -116,6 +117,7 @@ def login_user(request):
 
 
 @login_required
+@teacher_required
 def test_generator_page(request):
     """Render the test generator page"""
     return render(request, 'accounts/test_generator.html')
@@ -123,6 +125,7 @@ def test_generator_page(request):
 
 @csrf_exempt
 @login_required
+@teacher_required
 def create_test(request):
     """API endpoint to create a new test"""
     if request.method != "POST":
@@ -233,6 +236,7 @@ def create_test(request):
 
 
 @login_required
+@teacher_required
 def test_list_page(request):
     """Render the test list page - show only user's tests with stats"""
     tests = Test.objects.filter(created_by=request.user).order_by('-created_at')
@@ -259,6 +263,7 @@ def test_list_page(request):
 
 
 @login_required
+@teacher_required
 def test_detail_page(request, test_id):
     """Render the test detail page"""
     try:
@@ -270,6 +275,7 @@ def test_detail_page(request, test_id):
 
 @csrf_exempt
 @login_required
+@teacher_required
 def generate_pdf_api(request, test_id):
     """Generate PDF for an existing test"""
     if request.method != "POST":
@@ -300,6 +306,7 @@ def generate_pdf_api(request, test_id):
 
 @csrf_exempt
 @login_required
+@teacher_required
 def delete_test_api(request, test_id):
     """Delete a test"""
     if request.method != "DELETE" and request.method != "POST":
@@ -328,6 +335,7 @@ def delete_test_api(request, test_id):
 
 @csrf_exempt
 @login_required
+@teacher_required
 def duplicate_test_api(request, test_id):
     """Duplicate an existing test"""
     if request.method != "POST":
@@ -365,6 +373,7 @@ def logout_view(request):
 
 @csrf_exempt
 @login_required
+@teacher_required
 def upload_submissions(request, test_id):
     """Upload and process student submissions (images or zip file)"""
     if request.method != "POST":
@@ -544,6 +553,7 @@ def process_single_submission(test, image_path, filename, correct_answers):
 
 
 @login_required
+@teacher_required
 def get_test_submissions(request, test_id):
     """Get all submissions for a test"""
     try:
@@ -572,6 +582,7 @@ def get_test_submissions(request, test_id):
 
 
 @login_required
+@teacher_required
 def submission_detail_page(request, test_id, submission_id):
     """View detailed submission with answer breakdown"""
     try:
@@ -610,6 +621,7 @@ def submission_detail_page(request, test_id, submission_id):
 
 @csrf_exempt
 @login_required
+@teacher_required
 def update_submission_name(request, test_id, submission_id):
     """Update the student name on a submission"""
     if request.method != 'POST':
@@ -655,6 +667,7 @@ def update_submission_name(request, test_id, submission_id):
 
 @csrf_exempt
 @login_required
+@teacher_required
 def update_test_name(request, test_id):
     """Update the test name/title"""
     if request.method != 'POST':
@@ -687,6 +700,7 @@ def update_test_name(request, test_id):
 
 
 @login_required
+@teacher_required
 def test_analytics_api(request, test_id):
     """Get analytics for a test"""
     try:
@@ -745,6 +759,7 @@ import csv
 from django.http import HttpResponse
 
 @login_required
+@teacher_required
 def export_results_csv(request, test_id):
     """Export test results to CSV"""
     try:
@@ -824,18 +839,9 @@ def export_results_csv(request, test_id):
 # ============================================
 
 @login_required
+@student_required
 def student_dashboard(request):
     """Student dashboard showing enrolled tests and results"""
-    try:
-        profile = Profile.objects.get(user=request.user)
-        
-        # Redirect teachers to teacher portal
-        if profile.role == 'teacher':
-            return redirect('test-list')
-    except Profile.DoesNotExist:
-        # Create profile if it doesn't exist (default is student)
-        profile = Profile.objects.create(user=request.user, role='student')
-    
     # Get enrolled tests with their submissions
     enrollments = TestEnrollment.objects.filter(student=request.user).select_related('test')
     
@@ -865,6 +871,7 @@ def student_dashboard(request):
 
 @csrf_exempt
 @login_required
+@student_required
 def enroll_in_test(request):
     """Enroll a student in a test using enrollment code"""
     if request.method != 'POST':
@@ -904,6 +911,7 @@ def enroll_in_test(request):
 
 
 @login_required
+@student_required
 def student_test_result(request, test_id):
     """View detailed results for a specific test"""
     try:
