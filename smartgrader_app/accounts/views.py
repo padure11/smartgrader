@@ -471,10 +471,44 @@ def process_single_submission(test, image_path, filename, correct_answers):
             image_content = f.read()
         saved_path = default_storage.save(submission_image_path, ContentFile(image_content))
 
+        # Try to match OCR-detected name with enrolled student
+        student_user = None
+        first_name = student_info.get('first_name', '').strip()
+        last_name = student_info.get('last_name', '').strip()
+
+        if first_name or last_name:
+            # Get all enrolled students for this test
+            enrollments = TestEnrollment.objects.filter(test=test).select_related('student')
+
+            for enrollment in enrollments:
+                user = enrollment.student
+                # Try exact match (case-insensitive)
+                user_first = user.first_name.strip().lower() if user.first_name else ''
+                user_last = user.last_name.strip().lower() if user.last_name else ''
+                ocr_first = first_name.lower()
+                ocr_last = last_name.lower()
+
+                # Match: first and last name
+                if user_first and user_last and ocr_first and ocr_last:
+                    if user_first == ocr_first and user_last == ocr_last:
+                        student_user = user
+                        break
+                    # Try swapped (in case OCR detected them backwards)
+                    if user_first == ocr_last and user_last == ocr_first:
+                        student_user = user
+                        # Swap them back to correct order
+                        first_name, last_name = last_name, first_name
+                        break
+                # Match: only last name (more unique)
+                elif user_last and ocr_last and user_last == ocr_last:
+                    student_user = user
+                    break
+
         submission = Submission.objects.create(
             test=test,
-            first_name=student_info.get('first_name'),
-            last_name=student_info.get('last_name'),
+            student_user=student_user,  # Link to enrolled student if matched
+            first_name=first_name,
+            last_name=last_name,
             image=saved_path,
             answers=detected_answers,
             score=grading['score'],
