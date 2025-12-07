@@ -46,15 +46,26 @@ def register_user(request):
 
         email = data.get("email")
         password = data.get("password")
+        first_name = data.get("first_name", "").strip()
+        last_name = data.get("last_name", "").strip()
         role = data.get("role", "student")  # Default to student if not provided
 
         if not email or not password:
             return JsonResponse({"error": "Email and password required"}, status=400)
 
+        if not first_name or not last_name:
+            return JsonResponse({"error": "First name and last name required"}, status=400)
+
         if User.objects.filter(email=email).exists():
             return JsonResponse({"error": "Email already registered"}, status=400)
 
-        user = User.objects.create_user(email=email, password=password)
+        # Create user with first and last name
+        user = User.objects.create_user(
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name
+        )
 
         # Create profile with the selected role
         # Note: Signal auto-creation is disabled to allow role selection
@@ -65,6 +76,7 @@ def register_user(request):
         return JsonResponse({
             "message": "User created successfully",
             "email": user.email,
+            "name": f"{user.first_name} {user.last_name}",
             "role": profile.role
         }, status=201)
 
