@@ -41,26 +41,34 @@ def register_user(request):
     if request.method != "POST":
         return JsonResponse({"error": "Only POST allowed"}, status=400)
 
-    data = json.loads(request.body)
+    try:
+        data = json.loads(request.body)
 
-    email = data.get("email")
-    password = data.get("password")
-    role = data.get("role", "student")  # Default to student if not provided
+        email = data.get("email")
+        password = data.get("password")
+        role = data.get("role", "student")  # Default to student if not provided
 
-    if not email or not password:
-        return JsonResponse({"error": "Email and password required"}, status=400)
+        if not email or not password:
+            return JsonResponse({"error": "Email and password required"}, status=400)
 
-    if User.objects.filter(email=email).exists():
-        return JsonResponse({"error": "Email already registered"}, status=400)
+        if User.objects.filter(email=email).exists():
+            return JsonResponse({"error": "Email already registered"}, status=400)
 
-    user = User.objects.create_user(email=email, password=password)
+        user = User.objects.create_user(email=email, password=password)
 
-    # Create profile with the selected role
-    Profile.objects.create(user=user, role=role)
+        # Create profile with the selected role
+        Profile.objects.create(user=user, role=role)
 
-    login(request, user)  # Auto login after registration
+        login(request, user)  # Auto login after registration
 
-    return JsonResponse({"message": "User created successfully", "email": user.email}, status=201)
+        return JsonResponse({
+            "message": "User created successfully",
+            "email": user.email,
+            "role": role
+        }, status=201)
+
+    except Exception as e:
+        return JsonResponse({"error": f"Registration failed: {str(e)}"}, status=500)
 
 
 @csrf_exempt
@@ -68,26 +76,30 @@ def login_user(request):
     if request.method != "POST":
         return JsonResponse({"error": "Only POST allowed"}, status=400)
 
-    data = json.loads(request.body)
+    try:
+        data = json.loads(request.body)
 
-    email = data.get("email")
-    password = data.get("password")
+        email = data.get("email")
+        password = data.get("password")
 
-    user = authenticate(request, email=email, password=password)
+        user = authenticate(request, email=email, password=password)
 
-    if user is None:
-        return JsonResponse({"error": "Invalid credentials"}, status=400)
+        if user is None:
+            return JsonResponse({"error": "Invalid credentials"}, status=400)
 
-    login(request, user)
+        login(request, user)
 
-    # Get or create user profile
-    profile, created = Profile.objects.get_or_create(user=user, defaults={'role': 'student'})
+        # Get or create user profile
+        profile, created = Profile.objects.get_or_create(user=user, defaults={'role': 'student'})
 
-    return JsonResponse({
-        "message": "Login successful",
-        "email": user.email,
-        "role": profile.role
-    })
+        return JsonResponse({
+            "message": "Login successful",
+            "email": user.email,
+            "role": profile.role
+        })
+
+    except Exception as e:
+        return JsonResponse({"error": f"Login failed: {str(e)}"}, status=500)
 
 
 @login_required
