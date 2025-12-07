@@ -18,6 +18,7 @@ import zipfile
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from .omr_processor import process_omr_image, grade_submission
+from django.conf import settings
 
 # Add pdf_generator to path
 sys.path.append(os.path.join(settings.BASE_DIR.parent, 'pdf_generator'))
@@ -399,7 +400,7 @@ def ai_generate_questions(request):
             return JsonResponse({"error": "Number of questions must be between 1 and 50"}, status=400)
 
         # Get API key from environment variable
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        api_key = settings.ANTHROPIC_API_KEY
         if not api_key:
             return JsonResponse({
                 "error": "ANTHROPIC_API_KEY environment variable not set. Please configure your API key."
