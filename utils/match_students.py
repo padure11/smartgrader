@@ -18,8 +18,9 @@ def match_submission_to_student(submission, test):
     """
     Try to match a submission to an enrolled student based on name.
     """
-    first_name = submission.first_name.strip() if submission.first_name else ''
-    last_name = submission.last_name.strip() if submission.last_name else ''
+    # Handle None values from database
+    first_name = (submission.first_name or '').strip()
+    last_name = (submission.last_name or '').strip()
 
     if not first_name and not last_name:
         return None
@@ -29,11 +30,11 @@ def match_submission_to_student(submission, test):
 
     for enrollment in enrollments:
         user = enrollment.student
-        # Try exact match (case-insensitive)
-        user_first = user.first_name.strip().lower() if user.first_name else ''
-        user_last = user.last_name.strip().lower() if user.last_name else ''
-        ocr_first = first_name.lower() if first_name else ''
-        ocr_last = last_name.lower() if last_name else ''
+        # Try exact match (case-insensitive) - handle None values
+        user_first = (user.first_name or '').strip().lower()
+        user_last = (user.last_name or '').strip().lower()
+        ocr_first = first_name.lower()
+        ocr_last = last_name.lower()
 
         # Match: first and last name
         if user_first and user_last and ocr_first and ocr_last:

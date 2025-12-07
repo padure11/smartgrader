@@ -18,6 +18,7 @@ import zipfile
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from .omr_processor import process_omr_image, grade_submission
+from django.conf import settings
 
 # Add pdf_generator to path
 sys.path.append(os.path.join(settings.BASE_DIR.parent, 'pdf_generator'))
@@ -94,8 +95,9 @@ def register_user(request):
 
         email = data.get("email")
         password = data.get("password")
-        first_name = data.get("first_name", "").strip()
-        last_name = data.get("last_name", "").strip()
+        # Handle None values from JSON null
+        first_name = (data.get("first_name") or "").strip()
+        last_name = (data.get("last_name") or "").strip()
         role = data.get("role", "student")  # Default to student if not provided
 
         if not email or not password:
@@ -399,7 +401,7 @@ def ai_generate_questions(request):
             return JsonResponse({"error": "Number of questions must be between 1 and 50"}, status=400)
 
         # Get API key from environment variable
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        api_key = settings.ANTHROPIC_API_KEY
         if not api_key:
             return JsonResponse({
                 "error": "ANTHROPIC_API_KEY environment variable not set. Please configure your API key."
@@ -705,7 +707,9 @@ def match_submission_to_student(submission, test, first_name, last_name):
     Try to match a submission to an enrolled student based on name.
     Returns the matched user or None.
     """
-    student_user = None
+    # Ensure first_name and last_name are strings, not None
+    first_name = first_name or ''
+    last_name = last_name or ''
 
     if not first_name and not last_name:
         return None
@@ -715,11 +719,11 @@ def match_submission_to_student(submission, test, first_name, last_name):
 
     for enrollment in enrollments:
         user = enrollment.student
-        # Try exact match (case-insensitive)
-        user_first = user.first_name.strip().lower() if user.first_name else ''
-        user_last = user.last_name.strip().lower() if user.last_name else ''
-        ocr_first = first_name.lower() if first_name else ''
-        ocr_last = last_name.lower() if last_name else ''
+        # Try exact match (case-insensitive) - handle None values
+        user_first = (user.first_name or '').strip().lower()
+        user_last = (user.last_name or '').strip().lower()
+        ocr_first = first_name.strip().lower()
+        ocr_last = last_name.strip().lower()
 
         # Match: first and last name
         if user_first and user_last and ocr_first and ocr_last:
@@ -761,9 +765,9 @@ def process_single_submission(test, image_path, filename, correct_answers):
             image_content = f.read()
         saved_path = default_storage.save(submission_image_path, ContentFile(image_content))
 
-        # Extract student info from OCR
-        first_name = student_info.get('first_name', '').strip()
-        last_name = student_info.get('last_name', '').strip()
+        # Extract student info from OCR (handle None values)
+        first_name = (student_info.get('first_name') or '').strip()
+        last_name = (student_info.get('last_name') or '').strip()
 
         # Try to match with enrolled student
         student_user = match_submission_to_student(None, test, first_name, last_name)
@@ -878,8 +882,9 @@ def update_submission_name(request, test_id, submission_id):
         submission = Submission.objects.get(id=submission_id, test=test)
 
         data = json.loads(request.body)
-        first_name = data.get('first_name', '').strip()
-        last_name = data.get('last_name', '').strip()
+        # Handle None values from JSON null
+        first_name = (data.get('first_name') or '').strip()
+        last_name = (data.get('last_name') or '').strip()
 
         if not first_name or not last_name:
             return JsonResponse({'error': 'Both first name and last name are required'}, status=400)
