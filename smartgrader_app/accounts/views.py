@@ -294,8 +294,9 @@ Return a JSON array of {num_questions} questions. Make the questions educational
 Ensure each question tests understanding of {topic}."""
 
         # Call Claude API
+        # Using claude-3-5-sonnet-20240620 (stable version available to all API keys)
         message = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-3-5-sonnet-20240620",
             max_tokens=4000,
             messages=[
                 {"role": "user", "content": prompt}
