@@ -48,6 +48,32 @@
     margin-bottom: 20px;
 }
 
+/* Scrollable Questions Container */
+#questions-container {
+    max-height: 600px;  /* Approx 5 questions × 120px each */
+    overflow-y: auto;
+    padding-right: 10px;  /* Space for scrollbar */
+}
+
+/* Custom scrollbar styling for dark theme */
+#questions-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+#questions-container::-webkit-scrollbar-track {
+    background: #1c1c1c;
+    border-radius: 4px;
+}
+
+#questions-container::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 4px;
+}
+
+#questions-container::-webkit-scrollbar-thumb:hover {
+    background: #5568d3;
+}
+
 .form-group {
     margin-bottom: 20px;
 }
