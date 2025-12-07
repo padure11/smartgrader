@@ -8,6 +8,7 @@ urlpatterns = [
     path("accounts/api-register/", register_user, name="api-register"),
     path("accounts/api-login/", login_user, name="api-login"),
     path("accounts/api-create-test/", views.create_test, name="api-create-test"),
+    path("accounts/api-ai-generate/", views.ai_generate_questions, name="api-ai-generate"),
 
     path("register/", register_page, name="register"),
     path("login/", login_page, name="login"),

@@ -582,3 +582,129 @@ function updateQuestionNumbers() {
         }
     });
 }
+
+// ============================================
+// AI QUESTION GENERATION
+// ============================================
+
+// Get elements
+const aiGenerateBtn = document.getElementById('ai-generate-btn');
+const aiModal = document.getElementById('ai-modal');
+const aiModalClose = document.getElementById('ai-modal-close');
+const aiCancel = document.getElementById('ai-cancel');
+const aiGenerate = document.getElementById('ai-generate');
+const aiError = document.getElementById('ai-error');
+const aiLoading = document.getElementById('ai-loading');
+
+// Open modal
+if (aiGenerateBtn) {
+    aiGenerateBtn.addEventListener('click', () => {
+        aiModal.style.display = 'flex';
+        document.getElementById('ai-topic').value = '';
+        document.getElementById('ai-num-questions').value = '10';
+        document.getElementById('ai-difficulty').value = 'medium';
+        aiError.style.display = 'none';
+        aiLoading.style.display = 'none';
+    });
+}
+
+// Close modal
+function closeAIModal() {
+    aiModal.style.display = 'none';
+}
+
+if (aiModalClose) {
+    aiModalClose.addEventListener('click', closeAIModal);
+}
+
+if (aiCancel) {
+    aiCancel.addEventListener('click', closeAIModal);
+}
+
+// Click outside to close
+if (aiModal) {
+    aiModal.addEventListener('click', (e) => {
+        if (e.target === aiModal) {
+            closeAIModal();
+        }
+    });
+}
+
+// Generate questions
+if (aiGenerate) {
+    aiGenerate.addEventListener('click', async () => {
+        const topic = document.getElementById('ai-topic').value.trim();
+        const numQuestions = parseInt(document.getElementById('ai-num-questions').value);
+        const difficulty = document.getElementById('ai-difficulty').value;
+        const numOptions = parseInt(document.getElementById('num-options').value) || 5;
+
+        // Validation
+        if (!topic) {
+            aiError.textContent = 'Please enter a topic';
+            aiError.style.display = 'block';
+            return;
+        }
+
+        if (numQuestions < 1 || numQuestions > 50) {
+            aiError.textContent = 'Number of questions must be between 1 and 50';
+            aiError.style.display = 'block';
+            return;
+        }
+
+        // Show loading
+        aiError.style.display = 'none';
+        aiLoading.style.display = 'block';
+        aiGenerate.disabled = true;
+
+        try {
+            const response = await fetch('/accounts/api-ai-generate/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    topic,
+                    num_questions: numQuestions,
+                    num_options: numOptions,
+                    difficulty
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to generate questions');
+            }
+
+            // Add questions to the form
+            data.questions.forEach(q => {
+                addQuestion(q.question, q.options, q.correct_answer);
+            });
+
+            // Close modal
+            closeAIModal();
+
+            // Show success message
+            showSuccess(`Successfully generated ${data.count} questions!`);
+
+        } catch (error) {
+            aiError.textContent = error.message;
+            aiError.style.display = 'block';
+        } finally {
+            aiLoading.style.display = 'none';
+            aiGenerate.disabled = false;
+        }
+    });
+}
+
+// Helper function to show success message
+function showSuccess(message) {
+    const successDiv = document.getElementById('success-message');
+    if (successDiv) {
+        successDiv.textContent = message;
+        successDiv.style.display = 'block';
+        setTimeout(() => {
+            successDiv.style.display = 'none';
+        }, 5000);
+    }
+}
