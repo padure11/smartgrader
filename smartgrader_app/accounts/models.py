@@ -129,5 +129,19 @@ class Submission(models.Model):
             return self.last_name
         return "Unknown"
 
+    @property
+    def grade(self):
+        """Calculate letter grade based on percentage"""
+        if self.percentage >= 90:
+            return 'A'
+        elif self.percentage >= 80:
+            return 'B'
+        elif self.percentage >= 70:
+            return 'C'
+        elif self.percentage >= 60:
+            return 'D'
+        else:
+            return 'F'
+
     def __str__(self):
         return f"{self.full_name} - {self.test.title} - {self.score}/{self.total_questions}"

@@ -235,6 +235,117 @@ def create_test(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+@csrf_exempt
+@login_required
+@teacher_required
+def ai_generate_questions(request):
+    """Generate test questions using AI (Claude API)"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=400)
+
+    try:
+        import anthropic
+    except ImportError:
+        return JsonResponse({
+            "error": "AI generation requires the 'anthropic' package. Install it with: pip install anthropic"
+        }, status=500)
+
+    try:
+        data = json.loads(request.body)
+
+        topic = data.get("topic", "").strip()
+        num_questions = data.get("num_questions", 10)
+        num_options = data.get("num_options", 5)
+        difficulty = data.get("difficulty", "medium")
+
+        if not topic:
+            return JsonResponse({"error": "Topic is required"}, status=400)
+
+        if num_questions < 1 or num_questions > 50:
+            return JsonResponse({"error": "Number of questions must be between 1 and 50"}, status=400)
+
+        # Get API key from environment variable
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            return JsonResponse({
+                "error": "ANTHROPIC_API_KEY environment variable not set. Please configure your API key."
+            }, status=500)
+
+        # Initialize Anthropic client
+        client = anthropic.Anthropic(api_key=api_key)
+
+        # Create prompt for Claude
+        option_letters = ['A', 'B', 'C', 'D', 'E'][:num_options]
+        prompt = f"""Generate {num_questions} multiple-choice questions about: {topic}
+
+Difficulty level: {difficulty}
+Number of options per question: {num_options} ({', '.join(option_letters)})
+
+Format each question as a JSON object with this exact structure:
+{{
+    "question": "The question text",
+    "options": ["Option A text", "Option B text", "Option C text"{', "Option D text"' if num_options >= 4 else ''}{', "Option E text"' if num_options >= 5 else ''}],
+    "correct_answer": 0
+}}
+
+Where correct_answer is the index (0-{num_options-1}) of the correct option.
+
+Return a JSON array of {num_questions} questions. Make the questions educational, clear, and appropriately challenging for {difficulty} level.
+Ensure each question tests understanding of {topic}."""
+
+        # Call Claude API
+        message = client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=4000,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+
+        # Parse response
+        response_text = message.content[0].text
+
+        # Try to extract JSON from response
+        # Claude might wrap it in markdown code blocks
+        if "```json" in response_text:
+            response_text = response_text.split("```json")[1].split("```")[0].strip()
+        elif "```" in response_text:
+            response_text = response_text.split("```")[1].split("```")[0].strip()
+
+        questions = json.loads(response_text)
+
+        # Validate and clean the questions
+        if not isinstance(questions, list):
+            return JsonResponse({"error": "Invalid response format from AI"}, status=500)
+
+        validated_questions = []
+        for q in questions:
+            if not isinstance(q, dict):
+                continue
+            if "question" not in q or "options" not in q or "correct_answer" not in q:
+                continue
+            if not isinstance(q["options"], list) or len(q["options"]) != num_options:
+                continue
+            if not isinstance(q["correct_answer"], int) or q["correct_answer"] < 0 or q["correct_answer"] >= num_options:
+                continue
+
+            validated_questions.append(q)
+
+        if len(validated_questions) == 0:
+            return JsonResponse({"error": "No valid questions generated"}, status=500)
+
+        return JsonResponse({
+            "success": True,
+            "questions": validated_questions,
+            "count": len(validated_questions)
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON in request"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": f"AI generation failed: {str(e)}"}, status=500)
+
+
 @login_required
 @teacher_required
 def test_list_page(request):
@@ -945,7 +1056,7 @@ def student_test_result(request, test_id):
             student_answer = submission.answers[i] if i < len(submission.answers) else None
             correct_answer = question['correct_answer']
             is_correct = student_answer == correct_answer
-            
+
             answer_details.append({
                 'question_num': i + 1,
                 'question_text': question['question'],
@@ -954,13 +1065,63 @@ def student_test_result(request, test_id):
                 'correct_answer': correct_answer,
                 'is_correct': is_correct
             })
-        
+
+        # Calculate performance analysis
+        all_submissions = Submission.objects.filter(test=test, processed=True)
+        analysis = None
+
+        if all_submissions.count() > 0:
+            # Class statistics
+            class_percentages = [s.percentage for s in all_submissions]
+            class_average = sum(class_percentages) / len(class_percentages)
+
+            # Student ranking
+            submissions_sorted = sorted(all_submissions, key=lambda s: s.percentage, reverse=True)
+            student_rank = next((i + 1 for i, s in enumerate(submissions_sorted) if s.id == submission.id), None)
+
+            # Performance vs class average
+            performance_diff = submission.percentage - class_average
+
+            # Identify strengths and weaknesses
+            correct_count = sum(1 for detail in answer_details if detail['is_correct'])
+            incorrect_count = len(answer_details) - correct_count
+
+            # Performance level
+            if submission.percentage >= 90:
+                performance_level = "Excellent"
+                performance_message = "Outstanding performance! Keep up the great work."
+            elif submission.percentage >= 80:
+                performance_level = "Very Good"
+                performance_message = "Great job! You're performing well above average."
+            elif submission.percentage >= 70:
+                performance_level = "Good"
+                performance_message = "Good work! A bit more practice and you'll excel."
+            elif submission.percentage >= 60:
+                performance_level = "Satisfactory"
+                performance_message = "You're on the right track. Focus on areas that need improvement."
+            else:
+                performance_level = "Needs Improvement"
+                performance_message = "Don't be discouraged! Review the material and try again."
+
+            analysis = {
+                'class_average': round(class_average, 1),
+                'student_rank': student_rank,
+                'total_students': all_submissions.count(),
+                'performance_diff': round(performance_diff, 1),
+                'performance_level': performance_level,
+                'performance_message': performance_message,
+                'correct_count': correct_count,
+                'incorrect_count': incorrect_count,
+                'above_average': performance_diff > 0
+            }
+
         context = {
             'test': test,
             'submission': submission,
-            'answer_details': answer_details
+            'answer_details': answer_details,
+            'analysis': analysis
         }
-        
+
         return render(request, 'accounts/student_result.html', context)
         
     except Test.DoesNotExist:
