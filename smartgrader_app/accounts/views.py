@@ -56,8 +56,8 @@ def register_user(request):
 
         user = User.objects.create_user(email=email, password=password)
 
-        # Create profile with the selected role
-        Profile.objects.create(user=user, role=role)
+        # Create profile with the selected role (use get_or_create to avoid race conditions)
+        Profile.objects.get_or_create(user=user, defaults={'role': role})
 
         login(request, user)  # Auto login after registration
 
